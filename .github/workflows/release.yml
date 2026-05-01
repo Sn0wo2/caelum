@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: "Run GoReleaser in snapshot mode without publishing to crates.io"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run GoReleaser snapshot
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot }}
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean --config .goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser release
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --config .goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts
+          path: dist/*
+          retention-days: 30

@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: default
+            command: cargo build --release
+          - id: all-features
+            command: cargo build --release --all-features
+          - id: no-default
+            command: cargo build --release --no-default-features
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.id }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.id }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: ${{ matrix.command }}

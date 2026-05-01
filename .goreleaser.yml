@@ -1,0 +1,44 @@
+version: 2
+
+project_name: sage-trace
+
+builds:
+  - skip: true
+
+source:
+  enabled: false
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+before:
+  hooks:
+    - cargo fmt --all -- --check
+    - cargo clippy --all-features -- -D warnings
+    - cargo test --all
+    - cargo test --all --all-features
+    - cargo test --all --no-default-features
+    - cargo publish --manifest-path crates/sage-trace-build/Cargo.toml --dry-run --allow-dirty
+    - cargo publish --dry-run --allow-dirty
+
+release:
+  github:
+    owner: Sn0wo2
+    name: sage-trace
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
