@@ -6,14 +6,11 @@ fn demo_logs(label: &str) {
     tracing::warn!(user = "alice", count = 42, "[{label}] something happened");
     tracing::error!("[{label}] this is an error");
     tracing::debug!("[{label}] debug message");
-    let span = tracing::info_span!("my_span", task = "demo");
-    let _enter = span.enter();
-    tracing::info!("[{label}] inside a span");
+    let _span = tracing::info_span!("my_span", task = "demo").entered();
+    tracing::trace!("[{label}] inside a span");
 }
 
 fn main() {
-    println!("=== sage-trace debug runner ===\n");
-
     println!("▸ Test 1a: Compact + Unicode icons (default)");
     {
         let console = ConsoleConfig::default();
@@ -143,10 +140,13 @@ fn main() {
             Err(e) => println!("  rotate_log_file(Rename): ERR {e}"),
         }
 
-        std::fs::write(&log_path, b"compress me\n").ok();
-        match rotate_log_file(&log_path, LogRotation::Compress) {
-            Ok(()) => println!("  rotate_log_file(Compress): OK"),
-            Err(e) => println!("  rotate_log_file(Compress): ERR {e}"),
+        #[cfg(feature = "compress")]
+        {
+            std::fs::write(&log_path, b"compress me\n").ok();
+            match rotate_log_file(&log_path, LogRotation::Compress) {
+                Ok(()) => println!("  rotate_log_file(Compress): OK"),
+                Err(e) => println!("  rotate_log_file(Compress): ERR {e}"),
+            }
         }
 
         if let Ok(entries) = std::fs::read_dir(&tmp_dir) {
@@ -168,7 +168,7 @@ fn main() {
             LogLevel::Debug,
             LogLevel::Trace,
             LogLevel::Off,
-            LogLevel::Custom("info,my_crate=debug".to_string()),
+            LogLevel::Custom(FilterDirective::new("info,my_crate=debug")),
         ];
         for level in &levels {
             println!("  {:?} -> \"{}\"", level, level.as_filter_directive());
