@@ -73,7 +73,7 @@ impl Icons {
             time_bracket_open: "「",
             time_bracket_close: "」",
             separator: "\u{2502}",
-            arrow: "❯",
+            arrow: fa::FA_ARROW_RIGHT,
             span_delimiter: fa::FA_CODE_MERGE,
             span_join: fa::FA_ANGLE_RIGHT,
         }
