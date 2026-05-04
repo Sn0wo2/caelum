@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[cfg(feature = "custom-async")]
-use tokio::io::{AsyncWriteExt, stderr, stdout};
-#[cfg(feature = "custom-async")]
 use tokio::io::AsyncWrite;
+#[cfg(feature = "custom-async")]
+use tokio::io::{AsyncWriteExt, stderr, stdout};
 #[cfg(feature = "custom-async")]
 use tokio::sync::mpsc;
 use tracing_subscriber::fmt::MakeWriter;
@@ -85,10 +85,7 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
         }
     });
 
-    AsyncWriter {
-        sender,
-        count,
-    }
+    AsyncWriter { sender, count }
 }
 #[cfg(feature = "native-async")]
 pub(crate) struct NativeAsyncWriter {
@@ -124,4 +121,3 @@ pub(crate) fn native_async_writer(target: AsyncWriterTarget) -> NativeAsyncWrite
         _guard: guard,
     }
 }
-

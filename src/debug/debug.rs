@@ -191,8 +191,9 @@ fn main() {
         println!("  build_console_layer(json+stderr): OK");
     }
 
-    println!("\n▸ Test 8: build_file_layer smoke test");
+    #[cfg(feature = "file")]
     {
+        println!("\n▸ Test 8: build_file_layer smoke test");
         let tmp_dir = std::env::temp_dir().join("sage-trace-debug-file");
         let _ = std::fs::create_dir_all(&tmp_dir);
 
