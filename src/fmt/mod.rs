@@ -1,233 +1,35 @@
+mod theme;
+
+pub use theme::{Icons, LevelLabels, Theme};
+
 use chrono::Local;
 use owo_colors::Style;
+use smart_default::SmartDefault;
 use std::fmt;
-use std::io::Write;
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::fmt::FormattedFields;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent};
 use tracing_subscriber::registry::LookupSpan;
 
-use crate::config::LogRotation;
-#[cfg(feature = "nerd")]
-use nerd_font_symbols::{fa, oct, ple};
+const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
 
-const BUILD_PATH_WIDTH: usize = match option_env!("SAGE_TRACE_MAX_PATH_WIDTH") {
-    Some(s) => {
-        let bytes = s.as_bytes();
-        let mut i = 0;
-        let mut n: usize = 0;
-        while i < bytes.len() {
-            n = n * 10 + (bytes[i] - b'0') as usize;
-            i += 1;
-        }
-        n
-    }
-    None => 28,
-};
-
-#[derive(Clone, Debug)]
-pub struct Icons {
-    pub bracket_open: &'static str,
-    pub bracket_close: &'static str,
-    pub time_bracket_open: &'static str,
-    pub time_bracket_close: &'static str,
-    pub separator: &'static str,
-    pub arrow: &'static str,
-    pub span_delimiter: &'static str,
-    pub span_join: &'static str,
-}
-
-impl Icons {
-    pub const fn unicode() -> Self {
-        Self {
-            bracket_open: "[",
-            bracket_close: "]",
-            time_bracket_open: "「",
-            time_bracket_close: "」",
-            separator: "│",
-            arrow: "❯",
-            span_delimiter: "┇",
-            span_join: "·",
-        }
-    }
-
-    #[cfg(feature = "nerd")]
-    pub const fn nerd() -> Self {
-        Self {
-            bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THICK,
-            bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THICK,
-            time_bracket_open: "「",
-            time_bracket_close: "」",
-            separator: "\u{2502}",
-            arrow: oct::OCT_CHEVRON_RIGHT,
-            span_delimiter: fa::FA_CODE_MERGE,
-            span_join: fa::FA_ANGLE_RIGHT,
-        }
-    }
-}
-
-impl Default for Icons {
-    fn default() -> Self {
-        #[cfg(feature = "nerd")]
-        {
-            Self::nerd()
-        }
-        #[cfg(all(feature = "unicode", not(feature = "nerd")))]
-        {
-            Self::unicode()
-        }
-        #[cfg(not(any(feature = "nerd", feature = "unicode")))]
-        {
-            Self::unicode()
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Theme {
-    pub accent: Style,
-    pub secondary: Style,
-    pub text: Style,
-    pub error: (u8, u8, u8),
-    pub warn: (u8, u8, u8),
-    pub info: (u8, u8, u8),
-    pub debug: (u8, u8, u8),
-    pub trace: (u8, u8, u8),
-}
-
-impl Theme {
-    pub const fn trans_flag() -> Self {
-        Self {
-            accent: Style::new().truecolor(91, 206, 250),
-            secondary: Style::new().truecolor(245, 169, 184),
-            text: Style::new().truecolor(255, 255, 255),
-            error: (255, 85, 85),
-            warn: (255, 200, 60),
-            info: (91, 206, 250),
-            debug: (245, 169, 184),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn monokai() -> Self {
-        Self {
-            accent: Style::new().truecolor(102, 217, 239),
-            secondary: Style::new().truecolor(249, 38, 114),
-            text: Style::new().truecolor(248, 248, 242),
-            error: (255, 85, 85),
-            warn: (255, 200, 60),
-            info: (102, 217, 239),
-            debug: (249, 38, 114),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn dracula() -> Self {
-        Self {
-            accent: Style::new().truecolor(139, 233, 253),
-            secondary: Style::new().truecolor(255, 121, 198),
-            text: Style::new().truecolor(248, 248, 242),
-            error: (255, 85, 85),
-            warn: (255, 200, 60),
-            info: (139, 233, 253),
-            debug: (255, 121, 198),
-            trace: (180, 180, 180),
-        }
-    }
-    pub const fn nord() -> Self {
-        Self {
-            accent: Style::new().truecolor(136, 192, 208),
-            secondary: Style::new().truecolor(163, 190, 140),
-            text: Style::new().truecolor(216, 222, 233),
-            error: (191, 97, 106),
-            warn: (235, 203, 139),
-            info: (136, 192, 208),
-            debug: (163, 190, 140),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn catppuccin_mocha() -> Self {
-        Self {
-            accent: Style::new().truecolor(137, 180, 250),
-            secondary: Style::new().truecolor(203, 166, 247),
-            text: Style::new().truecolor(205, 214, 244),
-            error: (243, 139, 168),
-            warn: (249, 226, 175),
-            info: (137, 180, 250),
-            debug: (203, 166, 247),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn gruvbox() -> Self {
-        Self {
-            accent: Style::new().truecolor(131, 165, 152),
-            secondary: Style::new().truecolor(254, 128, 25),
-            text: Style::new().truecolor(235, 219, 178),
-            error: (251, 73, 52),
-            warn: (250, 189, 47),
-            info: (131, 165, 152),
-            debug: (254, 128, 25),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn one_dark() -> Self {
-        Self {
-            accent: Style::new().truecolor(97, 175, 239),
-            secondary: Style::new().truecolor(198, 120, 221),
-            text: Style::new().truecolor(171, 178, 191),
-            error: (224, 108, 117),
-            warn: (229, 192, 123),
-            info: (97, 175, 239),
-            debug: (198, 120, 221),
-            trace: (180, 180, 180),
-        }
-    }
-
-    pub const fn tokyo_night() -> Self {
-        Self {
-            accent: Style::new().truecolor(122, 162, 247),
-            secondary: Style::new().truecolor(187, 154, 247),
-            text: Style::new().truecolor(192, 202, 245),
-            error: (247, 118, 142),
-            warn: (224, 175, 104),
-            info: (122, 162, 247),
-            debug: (187, 154, 247),
-            trace: (180, 180, 180),
-        }
-    }
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Self::trans_flag()
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, SmartDefault)]
 pub struct AnsiFormatter {
+    #[default("%H:%M:%S".to_string())]
     pub time_format: String,
+    #[default(BUILD_PATH_WIDTH)]
     pub path_width: usize,
+    #[default = true]
     pub show_path: bool,
+    #[default = true]
     pub show_spans: bool,
+    #[default(Theme::default())]
     pub theme: Theme,
+    #[default(Icons::default())]
     pub icons: Icons,
-}
-
-impl Default for AnsiFormatter {
-    fn default() -> Self {
-        Self {
-            time_format: "%H:%M:%S".to_string(),
-            path_width: BUILD_PATH_WIDTH,
-            show_path: true,
-            show_spans: true,
-            theme: Theme::default(),
-            icons: Icons::default(),
-        }
-    }
+    #[default(LevelLabels::default())]
+    pub labels: LevelLabels,
 }
 
 impl AnsiFormatter {
@@ -265,6 +67,11 @@ impl AnsiFormatter {
         self
     }
 
+    pub fn with_labels(mut self, labels: LevelLabels) -> Self {
+        self.labels = labels;
+        self
+    }
+
     fn format_path(file: &str, line: u32, max_width: usize) -> String {
         let normalized = file.replace('\\', "/");
         let stripped = normalized
@@ -278,7 +85,7 @@ impl AnsiFormatter {
     fn smart_truncate(path: &str, line: u32, max_width: usize) -> String {
         let full = format!("{}:{}", path, line);
         if full.len() <= max_width {
-            return format!("{:>width$}", full, width = max_width);
+            return format!("{:<width$}", full, width = max_width);
         }
 
         if let Some(last_slash) = path.rfind('/') {
@@ -319,56 +126,32 @@ where
 
         let time = Local::now().format(&self.time_format).to_string();
         let (level_rgb, level_label) = match *level {
-            Level::ERROR => (theme.error, "ERROR"),
-            Level::WARN => (theme.warn, "WARN "),
-            Level::INFO => (theme.info, "INFO "),
-            Level::DEBUG => (theme.debug, "DEBUG"),
-            Level::TRACE => (theme.trace, "TRACE"),
+            Level::ERROR => (theme.error, self.labels.error),
+            Level::WARN => (theme.warn, self.labels.warn),
+            Level::INFO => (theme.info, self.labels.info),
+            Level::DEBUG => (theme.debug, self.labels.debug),
+            Level::TRACE => (theme.trace, self.labels.trace),
         };
 
-        // Darken color for text (divide by 2)
         let dark_rgb = (level_rgb.0 / 2, level_rgb.1 / 2, level_rgb.2 / 2);
+        let level_fg = Style::new().truecolor(level_rgb.0, level_rgb.1, level_rgb.2);
+        let level_bg = Style::new()
+            .on_truecolor(level_rgb.0, level_rgb.1, level_rgb.2)
+            .truecolor(dark_rgb.0, dark_rgb.1, dark_rgb.2)
+            .bold();
+
+        write!(writer, "{}", theme.accent.style(icons.time_bracket_open))?;
+        write!(writer, "{}", theme.text.style(time))?;
 
         if is_nerd {
-            write!(writer, "{}", theme.accent.style(icons.time_bracket_open))?;
-            write!(writer, "{}", theme.text.style(time))?;
+            write!(writer, " {} ", theme.accent.dimmed().style(icons.separator))?;
+            write!(writer, "{}", level_fg.style(icons.bracket_open))?;
+            write!(writer, "{}", level_bg.style(level_label))?;
+            write!(writer, "{} ", level_fg.style(icons.bracket_close))?;
             write!(writer, "{} ", theme.accent.style(icons.time_bracket_close))?;
-            write!(
-                writer,
-                "{}",
-                Style::new()
-                    .truecolor(level_rgb.0, level_rgb.1, level_rgb.2)
-                    .style(icons.bracket_open)
-            )?;
-            write!(
-                writer,
-                "{}",
-                Style::new()
-                    .on_truecolor(level_rgb.0, level_rgb.1, level_rgb.2)
-                    .truecolor(dark_rgb.0, dark_rgb.1, dark_rgb.2)
-                    .bold()
-                    .style(level_label)
-            )?;
-            write!(
-                writer,
-                "{} ",
-                Style::new()
-                    .truecolor(level_rgb.0, level_rgb.1, level_rgb.2)
-                    .style(icons.bracket_close)
-            )?;
         } else {
-            write!(writer, "{}", theme.accent.style(icons.time_bracket_open))?;
-            write!(writer, "{}", theme.text.style(time))?;
             write!(writer, "{} ", theme.accent.style(icons.time_bracket_close))?;
-            write!(
-                writer,
-                "{} ",
-                Style::new()
-                    .on_truecolor(level_rgb.0, level_rgb.1, level_rgb.2)
-                    .truecolor(dark_rgb.0, dark_rgb.1, dark_rgb.2)
-                    .bold()
-                    .style(level_label)
-            )?;
+            write!(writer, "{} ", level_bg.style(level_label))?;
         }
 
         if self.show_path {
@@ -395,7 +178,6 @@ impl AnsiFormatter {
     ) -> fmt::Result {
         let file = event.metadata().file().unwrap_or("?");
         let line = event.metadata().line().unwrap_or(0);
-        write!(writer, "{} ", theme.accent.dimmed().style(icons.separator))?;
         write!(
             writer,
             "{}",
@@ -521,11 +303,11 @@ impl tracing::field::Visit for EventVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
         let val = format!("{:?}", value);
         if field.name() == "message" || field.name() == "msg" {
-            let trimmed = if val.starts_with('"') && val.ends_with('"') && val.len() >= 2 {
-                val[1..val.len() - 1].to_string()
-            } else {
-                val
-            };
+            let trimmed = val
+                .strip_prefix('"')
+                .and_then(|s| s.strip_suffix('"'))
+                .map(str::to_string)
+                .unwrap_or(val);
             self.record_field(field.name(), trimmed);
         } else {
             self.record_field(field.name(), val);
@@ -535,30 +317,3 @@ impl tracing::field::Visit for EventVisitor {
 
 #[cfg(test)]
 mod test;
-
-pub fn rotate_log_file(path: &std::path::Path, mode: LogRotation) -> anyhow::Result<()> {
-    if !path.exists() {
-        return Ok(());
-    }
-
-    match mode {
-        LogRotation::None => Ok(()),
-        LogRotation::Rename => {
-            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-            let renamed = path.with_extension(format!("{timestamp}.log"));
-            std::fs::rename(path, renamed)?;
-            Ok(())
-        }
-        LogRotation::Compress => {
-            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-            let gz_path = path.with_extension(format!("{timestamp}.log.gz"));
-            let input = std::fs::read(path)?;
-            let output = std::fs::File::create(&gz_path)?;
-            let mut encoder = flate2::write::GzEncoder::new(output, flate2::Compression::default());
-            encoder.write_all(&input)?;
-            encoder.finish()?;
-            std::fs::remove_file(path)?;
-            Ok(())
-        }
-    }
-}
