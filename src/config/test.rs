@@ -37,7 +37,7 @@ fn log_level_directives() {
 
 #[test]
 fn log_level_custom_directive() {
-    let level = LogLevel::Custom("info,my_crate=debug".to_string());
+    let level = LogLevel::Custom(FilterDirective::new("info,my_crate=debug"));
     assert_eq!(level.as_filter_directive(), "info,my_crate=debug");
 }
 

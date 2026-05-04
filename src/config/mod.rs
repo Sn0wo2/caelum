@@ -1,11 +1,13 @@
+use smart_default::SmartDefault;
 use std::path::PathBuf;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[non_exhaustive]
 pub enum LogFormat {
     Pretty,
+    #[default]
     Compact,
     Json,
 }
@@ -18,7 +20,26 @@ pub enum LogRotation {
     #[default]
     None,
     Rename,
+    #[cfg(feature = "compress")]
     Compress,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+pub struct FilterDirective(String);
+
+impl FilterDirective {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for FilterDirective {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -30,7 +51,7 @@ pub enum LogLevel {
     Debug,
     Trace,
     Off,
-    Custom(String),
+    Custom(FilterDirective),
 }
 
 impl LogLevel {
@@ -42,7 +63,7 @@ impl LogLevel {
             Self::Debug => "debug",
             Self::Trace => "trace",
             Self::Off => "off",
-            Self::Custom(directive) => directive,
+            Self::Custom(directive) => directive.as_str(),
         }
     }
 }
@@ -118,7 +139,7 @@ impl<'de> serde::Deserialize<'de> for LogLevel {
             "debug" => Self::Debug,
             "trace" => Self::Trace,
             "off" => Self::Off,
-            other => Self::Custom(other.to_string()),
+            other => Self::Custom(FilterDirective::new(other.to_string())),
         })
     }
 }
@@ -139,18 +160,38 @@ pub enum ConsoleWriter {
     #[default]
     Stdout,
     Stderr,
+    #[cfg(any(feature = "custom-async", feature = "native-async"))]
+    AsyncStdout(AsyncWriterMode),
+    #[cfg(any(feature = "custom-async", feature = "native-async"))]
+    AsyncStderr(AsyncWriterMode),
+}
+
+#[cfg(any(feature = "custom-async", feature = "native-async"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[derive(Clone, Copy, Debug, Default)]
+pub enum AsyncWriterMode {
+    #[cfg(feature = "custom-async")]
+    #[default]
+    Custom,
+    #[cfg(feature = "native-async")]
+    Native,
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, SmartDefault)]
 pub struct ConsoleConfig {
+    #[default(LogFormat::default())]
     pub format: LogFormat,
+    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub ansi: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub writer: ConsoleWriter,
+    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub show_path: bool,
+    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub show_spans: bool,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -162,23 +203,12 @@ fn default_true() -> bool {
     true
 }
 
-impl Default for ConsoleConfig {
-    fn default() -> Self {
-        Self {
-            format: LogFormat::Compact,
-            ansi: true,
-            writer: ConsoleWriter::default(),
-            show_path: true,
-            show_spans: true,
-            time_format: None,
-        }
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, SmartDefault)]
 pub struct LoggingConfig {
+    #[default(LogLevel::Info)]
     pub level: LogLevel,
+    #[default(Some(ConsoleConfig::default()))]
     #[cfg_attr(feature = "serde", serde(default = "default_console"))]
     pub console: Option<ConsoleConfig>,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -188,16 +218,6 @@ pub struct LoggingConfig {
 #[cfg(feature = "serde")]
 fn default_console() -> Option<ConsoleConfig> {
     Some(ConsoleConfig::default())
-}
-
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            level: LogLevel::Info,
-            console: Some(ConsoleConfig::default()),
-            file: None,
-        }
-    }
 }
 
 #[cfg(test)]
