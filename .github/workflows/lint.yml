@@ -4,7 +4,8 @@ on:
   workflow_call:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   fmt:
@@ -23,7 +24,35 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run cargo fmt
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all
+
+      - name: Check for changes
+        id: fmt-changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.fmt-changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: auto-fix formatting issues"
+          branch: auto-fix/fmt
+          delete-branch: true
+          title: "chore: auto-fix formatting issues"
+          body: |
+            ## Auto-generated PR
+            
+            `cargo fmt --all` found and fixed formatting issues.
+            
+            Please review the changes before merging.
+          labels: |
+            automated
+            lint
 
   clippy:
     name: Clippy
@@ -40,8 +69,36 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo clippy
-        run: cargo clippy --all-features -- -D warnings
+      - name: Run cargo clippy fix
+        run: cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
+
+      - name: Check for changes
+        id: clippy-changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.clippy-changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: auto-fix clippy warnings"
+          branch: auto-fix/clippy
+          delete-branch: true
+          title: "chore: auto-fix clippy warnings"
+          body: |
+            ## Auto-generated PR
+            
+            `cargo clippy --fix` found and fixed lint warnings.
+            
+            Please review the changes before merging.
+          labels: |
+            automated
+            lint
 
   doc:
     name: Documentation
@@ -85,3 +142,57 @@ jobs:
 
       - name: Run cargo check
         run: ${{ matrix.command }}
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo-deny
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-deny-
+
+      - name: Install cargo-deny
+        run: |
+          if ! command -v cargo-deny &> /dev/null; then
+            cargo install cargo-deny
+          fi
+
+      - name: Run cargo-deny
+        run: cargo deny check
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo-audit
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit-
+
+      - name: Install cargo-audit
+        run: |
+          if ! command -v cargo-audit &> /dev/null; then
+            cargo install cargo-audit
+          fi
+
+      - name: Run cargo-audit
+        run: cargo audit
