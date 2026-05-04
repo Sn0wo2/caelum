@@ -3,104 +3,41 @@
 #![deny(unused_must_use)]
 
 mod config;
+mod error;
 mod fmt;
+mod reload;
+mod rotation;
+#[cfg(any(feature = "custom-async", feature = "native-async"))]
+mod writer;
 
-pub use fmt::rotate_log_file;
-pub use fmt::{AnsiFormatter, Icons, Theme};
+pub use error::{Result, SageTraceError};
+pub use fmt::{AnsiFormatter, Icons, LevelLabels, Theme};
+pub use rotation::rotate_log_file;
+
+#[cfg(feature = "custom-async")]
+pub use writer::{AsyncWriter, AsyncWriterTarget, async_writer, async_writer_for};
+
+#[cfg(any(feature = "custom-async", feature = "native-async"))]
+pub use config::AsyncWriterMode;
 
 pub use config::{
-    ConsoleConfig, ConsoleWriter, FileLoggingConfig, LogFilter, LogFormat, LogLevel, LogRotation,
-    LoggingConfig,
+    ConsoleConfig, ConsoleWriter, FileLoggingConfig, FilterDirective, LogFilter, LogFormat,
+    LogLevel, LogRotation, LoggingConfig,
 };
 
+#[cfg(feature = "file")]
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::layer::Layered;
 use tracing_subscriber::prelude::*;
 
+#[cfg(feature = "file")]
 pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
 
-type FmtLayer = Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
-type InnerSubscriber = Layered<FmtLayer, tracing_subscriber::Registry>;
-type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscriber>;
+use crate::reload::FmtLayer;
 
-#[must_use = "dropping ReloadHandle loses the ability to change log filters at runtime"]
-#[derive(Clone)]
-pub struct ReloadHandle {
-    raw: RawReloadHandle,
-    filter: Arc<Mutex<LogFilter>>,
-}
+pub use crate::reload::ReloadHandle;
 
-impl std::fmt::Debug for ReloadHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ReloadHandle").finish_non_exhaustive()
-    }
-}
-
-impl ReloadHandle {
-    pub fn reload(&self, directive: &str) -> anyhow::Result<()> {
-        self.apply_directive(directive)?;
-        self.store_filter(LogFilter::new(LogLevel::Custom(directive.to_string())))?;
-        Ok(())
-    }
-
-    pub fn set_filter(&self, filter: LogFilter) -> anyhow::Result<()> {
-        let directive = filter.as_filter_directive();
-        self.apply_directive(&directive)?;
-        self.store_filter(filter)?;
-        Ok(())
-    }
-
-    pub fn set_level(&self, level: LogLevel) -> anyhow::Result<()> {
-        self.update_filter(|filter| filter.level = level)
-    }
-
-    pub fn set_target_level(
-        &self,
-        target: impl Into<String>,
-        level: LogLevel,
-    ) -> anyhow::Result<()> {
-        let target = target.into();
-        self.update_filter(|filter| filter.set_target_level(target, level))
-    }
-
-    pub fn remove_target_level(&self, target: &str) -> anyhow::Result<()> {
-        self.update_filter(|filter| {
-            filter.remove_target_level(target);
-        })
-    }
-
-    fn update_filter(&self, update: impl FnOnce(&mut LogFilter)) -> anyhow::Result<()> {
-        let mut next = self.current_filter()?;
-        update(&mut next);
-        self.set_filter(next)
-    }
-
-    fn current_filter(&self) -> anyhow::Result<LogFilter> {
-        Ok(self
-            .filter
-            .lock()
-            .map_err(|_| anyhow::anyhow!("log filter state lock poisoned"))?
-            .clone())
-    }
-
-    fn store_filter(&self, filter: LogFilter) -> anyhow::Result<()> {
-        *self
-            .filter
-            .lock()
-            .map_err(|_| anyhow::anyhow!("log filter state lock poisoned"))? = filter;
-        Ok(())
-    }
-
-    fn apply_directive(&self, directive: &str) -> anyhow::Result<()> {
-        let filter = EnvFilter::try_new(directive)?;
-        self.raw.modify(|f| *f = filter)?;
-        Ok(())
-    }
-}
-
+#[cfg(feature = "file")]
 #[must_use = "dropping TracingGuard will stop file logging"]
 #[derive(Debug)]
 pub struct TracingGuard {
@@ -128,6 +65,32 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: AnsiFormatte
             match $console.writer {
                 ConsoleWriter::Stdout => $layer.with_writer(std::io::stdout).boxed(),
                 ConsoleWriter::Stderr => $layer.with_writer(std::io::stderr).boxed(),
+                #[cfg(any(feature = "custom-async", feature = "native-async"))]
+                ConsoleWriter::AsyncStdout(mode) => match mode {
+                    #[cfg(feature = "custom-async")]
+                    config::AsyncWriterMode::Custom => $layer
+                        .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout))
+                        .boxed(),
+                    #[cfg(feature = "native-async")]
+                    config::AsyncWriterMode::Native => $layer
+                        .with_writer(writer::native_async_writer(
+                            writer::AsyncWriterTarget::Stdout,
+                        ))
+                        .boxed(),
+                },
+                #[cfg(any(feature = "custom-async", feature = "native-async"))]
+                ConsoleWriter::AsyncStderr(mode) => match mode {
+                    #[cfg(feature = "custom-async")]
+                    config::AsyncWriterMode::Custom => $layer
+                        .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr))
+                        .boxed(),
+                    #[cfg(feature = "native-async")]
+                    config::AsyncWriterMode::Native => $layer
+                        .with_writer(writer::native_async_writer(
+                            writer::AsyncWriterTarget::Stderr,
+                        ))
+                        .boxed(),
+                },
             }
         };
     }
@@ -172,6 +135,7 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: AnsiFormatte
     }
 }
 
+#[cfg(feature = "file")]
 #[must_use = "dropping FileLayerParts.guard will stop file logging"]
 pub struct FileLayerParts {
     pub writer: tracing_appender::non_blocking::NonBlocking,
@@ -179,6 +143,7 @@ pub struct FileLayerParts {
     pub path: PathBuf,
 }
 
+#[cfg(feature = "file")]
 impl std::fmt::Debug for FileLayerParts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FileLayerParts")
@@ -187,7 +152,8 @@ impl std::fmt::Debug for FileLayerParts {
     }
 }
 
-pub fn build_file_layer(file_config: &FileLoggingConfig) -> anyhow::Result<FileLayerParts> {
+#[cfg(feature = "file")]
+pub fn build_file_layer(file_config: &FileLoggingConfig) -> error::Result<FileLayerParts> {
     let path = &file_config.path;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -211,24 +177,10 @@ pub fn build_file_layer(file_config: &FileLoggingConfig) -> anyhow::Result<FileL
     })
 }
 
-pub fn build_reload_filter(
-    level: &LogLevel,
-) -> (
-    tracing_subscriber::reload::Layer<EnvFilter, InnerSubscriber>,
-    ReloadHandle,
-) {
-    let filter = EnvFilter::new(level.as_filter_directive());
-    let (layer, raw_handle) = tracing_subscriber::reload::Layer::new(filter);
-    (
-        layer,
-        ReloadHandle {
-            raw: raw_handle,
-            filter: Arc::new(Mutex::new(LogFilter::new(level.clone()))),
-        },
-    )
-}
+pub use crate::reload::build_reload_filter;
 
-pub fn init_tracing(config: &LoggingConfig) -> anyhow::Result<TracingGuard> {
+#[cfg(feature = "file")]
+pub fn init_tracing(config: &LoggingConfig) -> error::Result<TracingGuard> {
     let (filter, reload_handle) = build_reload_filter(&config.level);
 
     let console_layer: FmtLayer = match &config.console {
@@ -271,6 +223,7 @@ pub fn init_tracing(config: &LoggingConfig) -> anyhow::Result<TracingGuard> {
     })
 }
 
+#[cfg(feature = "file")]
 fn resolve_log_path(path: &std::path::Path) -> PathBuf {
     match std::fs::OpenOptions::new()
         .create(true)

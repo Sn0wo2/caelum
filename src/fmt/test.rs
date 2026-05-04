@@ -1,3 +1,5 @@
+use crate::rotate_log_file;
+use crate::config::LogRotation;
 use super::*;
 
 #[test]
@@ -90,9 +92,10 @@ fn format_path_strips_src() {
 fn rotate_nonexistent_file_is_noop() {
     let path = std::env::temp_dir().join("sage-trace-test-nonexistent.log");
     let _ = std::fs::remove_file(&path);
-    assert!(super::rotate_log_file(&path, LogRotation::Rename).is_ok());
-    assert!(super::rotate_log_file(&path, LogRotation::Compress).is_ok());
-    assert!(super::rotate_log_file(&path, LogRotation::None).is_ok());
+    assert!(rotate_log_file(&path, LogRotation::Rename).is_ok());
+    #[cfg(feature = "compress")]
+    assert!(rotate_log_file(&path, LogRotation::Compress).is_ok());
+    assert!(rotate_log_file(&path, LogRotation::None).is_ok());
 }
 
 #[test]
@@ -102,7 +105,7 @@ fn rotate_none_keeps_file() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"hello\n").unwrap();
 
-    super::rotate_log_file(&path, LogRotation::None).unwrap();
+    rotate_log_file(&path, LogRotation::None).unwrap();
     assert!(path.exists());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "hello\n");
     let _ = std::fs::remove_dir_all(&dir);
@@ -116,7 +119,7 @@ fn rotate_rename() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"old content\n").unwrap();
 
-    super::rotate_log_file(&path, LogRotation::Rename).unwrap();
+    rotate_log_file(&path, LogRotation::Rename).unwrap();
     assert!(!path.exists());
 
     let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
@@ -127,6 +130,7 @@ fn rotate_rename() {
 }
 
 #[test]
+#[cfg(feature = "compress")]
 fn rotate_compress() {
     let dir = std::env::temp_dir().join("sage-trace-test-fmt-compress");
     let _ = std::fs::remove_dir_all(&dir);
@@ -134,7 +138,7 @@ fn rotate_compress() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"compress me\n").unwrap();
 
-    super::rotate_log_file(&path, LogRotation::Compress).unwrap();
+    rotate_log_file(&path, LogRotation::Compress).unwrap();
     assert!(!path.exists());
 
     let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
