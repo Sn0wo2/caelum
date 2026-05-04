@@ -1,6 +1,6 @@
-use crate::rotate_log_file;
-use crate::config::LogRotation;
 use super::*;
+use crate::config::LogRotation;
+use crate::rotate_log_file;
 
 #[test]
 fn ansi_formatter_defaults() {

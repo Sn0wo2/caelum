@@ -46,6 +46,7 @@ fn build_console_layer_with_nerd_icons() {
     let _layer = build_console_layer_with(&cfg, formatter);
 }
 
+#[cfg(feature = "file")]
 #[test]
 fn build_file_layer_creates_dirs() {
     let dir = std::env::temp_dir().join("sage-trace-test-filelayer");
@@ -82,6 +83,7 @@ fn build_reload_filter_works() {
     );
 }
 
+#[cfg(feature = "file")]
 #[test]
 fn resolve_log_path_new_file() {
     let dir = std::env::temp_dir().join("sage-trace-test-resolve");
