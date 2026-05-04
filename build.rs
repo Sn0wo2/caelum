@@ -1,5 +1,10 @@
 fn main() {
     let max = sage_trace_build::walk_src_max_width("src", "src/");
-    println!("cargo::rustc-env=SAGE_TRACE_MAX_PATH_WIDTH={max}");
+    std::fs::write(
+        std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("path_width"),
+        max.to_string(),
+    )
+    .unwrap();
+    println!("cargo::warning=Max Path Width: {max}");
     println!("cargo::rerun-if-changed=src");
 }

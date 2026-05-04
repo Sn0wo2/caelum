@@ -1,7 +1,11 @@
 [package]
 name = "sage-trace-build"
-version = "0.1.0"
-edition = "2021"
+version = "0.0.0"
+edition = "2024"
 description = "Build-time helper for sage-trace path width calculation"
-repository = "https://github.com/yourusername/sage-trace"
+repository = "https://github.com/Sn0wo2/sage-trace"
 publish = true
+license = "MIT"
+
+[dependencies]
+walkdir = "2.5.0"
