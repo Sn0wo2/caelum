@@ -58,7 +58,10 @@ impl ReloadHandle {
     }
 
     fn with_style(&self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
-        let style = self.style.as_ref().ok_or(SageTraceError::StyleNotConfigured)?;
+        let style = self
+            .style
+            .as_ref()
+            .ok_or(SageTraceError::StyleNotConfigured)?;
         let mut guard = style.write().map_err(|_| SageTraceError::LockPoisoned)?;
         f(&mut guard);
         Ok(())
