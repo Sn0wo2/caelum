@@ -11,7 +11,7 @@ mod rotation;
 mod writer;
 
 pub use error::{Result, SageTraceError};
-pub use fmt::{AnsiFormatter, Icons, LevelLabels, Theme};
+pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
 pub use rotation::rotate_log_file;
 
 #[cfg(feature = "custom-async")]
@@ -47,14 +47,13 @@ pub struct TracingGuard {
 }
 
 pub fn build_console_layer(console: &ConsoleConfig) -> FmtLayer {
-    let formatter = AnsiFormatter::new()
+    let mut formatter = AnsiFormatter::new()
         .with_show_path(console.show_path)
         .with_show_spans(console.show_spans);
 
-    let formatter = match &console.time_format {
-        Some(tf) => formatter.with_time_format(tf.clone()),
-        None => formatter,
-    };
+    if let Some(tf) = &console.time_format {
+        formatter = formatter.with_time_format(tf.clone());
+    }
 
     build_console_layer_with(console, formatter)
 }
@@ -159,7 +158,7 @@ pub fn build_file_layer(file_config: &FileLoggingConfig) -> error::Result<FileLa
         std::fs::create_dir_all(parent)?;
     }
 
-    rotate_log_file(path, file_config.rotation.clone())?;
+    rotate_log_file(path, file_config.rotation)?;
 
     let path = resolve_log_path(path);
 
@@ -181,7 +180,7 @@ pub use crate::reload::build_reload_filter;
 
 #[cfg(feature = "file")]
 pub fn init_tracing(config: &LoggingConfig) -> error::Result<TracingGuard> {
-    let (filter, reload_handle) = build_reload_filter(&config.level);
+    let (filter, reload_handle) = build_reload_filter(&config.level, None);
 
     let console_layer: FmtLayer = match &config.console {
         Some(console) => build_console_layer(console),

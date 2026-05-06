@@ -1,11 +1,12 @@
 mod theme;
 
-pub use theme::{Icons, LevelLabels, Theme};
+pub use theme::{Icons, LevelLabels, StyleConfig, Theme};
 
 use chrono::Local;
 use owo_colors::Style;
-use smart_default::SmartDefault;
+use std::borrow::Cow;
 use std::fmt;
+use std::sync::{Arc, RwLock};
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::fmt::FormattedFields;
 use tracing_subscriber::fmt::format::Writer;
@@ -14,31 +15,40 @@ use tracing_subscriber::registry::LookupSpan;
 
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
 
-#[derive(Clone, Debug, SmartDefault)]
+#[derive(Clone, Debug, Default)]
 pub struct AnsiFormatter {
-    #[default("%H:%M:%S".to_string())]
     pub time_format: String,
-    #[default(BUILD_PATH_WIDTH)]
     pub path_width: usize,
-    #[default = true]
     pub show_path: bool,
-    #[default = true]
     pub show_spans: bool,
-    #[default(Theme::default())]
     pub theme: Theme,
-    #[default(Icons::default())]
     pub icons: Icons,
-    #[default(LevelLabels::default())]
     pub labels: LevelLabels,
+    style: Arc<RwLock<StyleConfig>>,
 }
 
 impl AnsiFormatter {
     pub fn new() -> Self {
-        Self::default()
+        let config = StyleConfig::default();
+        Self {
+            time_format: "%H:%M:%S".to_string(),
+            path_width: BUILD_PATH_WIDTH,
+            show_path: true,
+            show_spans: true,
+            theme: config.theme,
+            icons: config.icons,
+            labels: config.labels,
+            style: Arc::new(RwLock::new(config)),
+        }
+    }
+
+    pub fn style_config(&self) -> Arc<RwLock<StyleConfig>> {
+        self.style.clone()
     }
 
     pub fn with_theme(mut self, theme: Theme) -> Self {
         self.theme = theme;
+        self.style.write().unwrap().theme = theme;
         self
     }
 
@@ -64,16 +74,22 @@ impl AnsiFormatter {
 
     pub fn with_icons(mut self, icons: Icons) -> Self {
         self.icons = icons;
+        self.style.write().unwrap().icons = icons;
         self
     }
 
     pub fn with_labels(mut self, labels: LevelLabels) -> Self {
         self.labels = labels;
+        self.style.write().unwrap().labels = labels;
         self
     }
 
     fn format_path(file: &str, line: u32, max_width: usize) -> String {
-        let normalized = file.replace('\\', "/");
+        let normalized: Cow<str> = if file.contains('\\') {
+            Cow::Owned(file.replace('\\', "/"))
+        } else {
+            Cow::Borrowed(file)
+        };
         let stripped = normalized
             .find("src/")
             .map(|i| &normalized[i + 4..])
@@ -105,8 +121,12 @@ impl AnsiFormatter {
 
         format!("…{}", &full[full.len().saturating_sub(max_width - 1)..])
     }
-}
 
+    fn resolve_style(&self) -> (Theme, Icons, LevelLabels) {
+        let style = self.style.read().unwrap();
+        (style.theme, style.icons, style.labels)
+    }
+}
 impl<S, N> FormatEvent<S, N> for AnsiFormatter
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
@@ -118,19 +138,18 @@ where
         mut writer: Writer<'_>,
         event: &Event<'_>,
     ) -> fmt::Result {
-        let theme = &self.theme;
-        let icons = &self.icons;
-        let is_nerd = icons.bracket_open != "[";
+        let (theme, icons, labels) = self.resolve_style();
+        let is_nerd = icons.is_nerd();
 
         let level = event.metadata().level();
 
         let time = Local::now().format(&self.time_format).to_string();
         let (level_rgb, level_label) = match *level {
-            Level::ERROR => (theme.error, self.labels.error),
-            Level::WARN => (theme.warn, self.labels.warn),
-            Level::INFO => (theme.info, self.labels.info),
-            Level::DEBUG => (theme.debug, self.labels.debug),
-            Level::TRACE => (theme.trace, self.labels.trace),
+            Level::ERROR => (theme.error, labels.error),
+            Level::WARN => (theme.warn, labels.warn),
+            Level::INFO => (theme.info, labels.info),
+            Level::DEBUG => (theme.debug, labels.debug),
+            Level::TRACE => (theme.trace, labels.trace),
         };
 
         let dark_rgb = (level_rgb.0 / 2, level_rgb.1 / 2, level_rgb.2 / 2);
@@ -155,13 +174,13 @@ where
         }
 
         if self.show_path {
-            self.format_path_section(&mut writer, event, theme, icons)?;
+            self.format_path_section(&mut writer, event, &theme, &icons)?;
         }
 
-        self.format_fields(&mut writer, event, theme)?;
+        self.format_fields(&mut writer, event, &theme)?;
 
         if self.show_spans {
-            self.format_spans(&mut writer, ctx, theme, icons)?;
+            self.format_spans(&mut writer, ctx, &theme, &icons)?;
         }
 
         writeln!(writer)
@@ -242,6 +261,7 @@ impl AnsiFormatter {
                     writer.by_ref(),
                     span.name(),
                     span.extensions().get::<FormattedFields<N>>(),
+                    theme,
                 )?;
             }
         } else if let Some(span) = ctx.lookup_current() {
@@ -250,6 +270,7 @@ impl AnsiFormatter {
                 writer.by_ref(),
                 span.name(),
                 span.extensions().get::<FormattedFields<N>>(),
+                theme,
             )?;
         }
         Ok(())
@@ -260,11 +281,11 @@ impl AnsiFormatter {
         mut writer: Writer<'_>,
         name: &str,
         fields: Option<&FormattedFields<N>>,
+        theme: &Theme,
     ) -> fmt::Result
     where
         N: for<'b> tracing_subscriber::fmt::FormatFields<'b> + 'static,
     {
-        let theme = &self.theme;
         write!(writer, "{}", theme.text.dimmed().style(name))?;
 
         if let Some(fields) = fields {
@@ -302,16 +323,15 @@ impl tracing::field::Visit for EventVisitor {
 
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
         let val = format!("{:?}", value);
-        if field.name() == "message" || field.name() == "msg" {
-            let trimmed = val
-                .strip_prefix('"')
+        let trimmed = if matches!(field.name(), "message" | "msg") {
+            val.strip_prefix('"')
                 .and_then(|s| s.strip_suffix('"'))
                 .map(str::to_string)
-                .unwrap_or(val);
-            self.record_field(field.name(), trimmed);
+                .unwrap_or(val)
         } else {
-            self.record_field(field.name(), val);
-        }
+            val
+        };
+        self.record_field(field.name(), trimmed);
     }
 }
 

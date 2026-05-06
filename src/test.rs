@@ -69,7 +69,7 @@ fn build_file_layer_creates_dirs() {
 
 #[test]
 fn build_reload_filter_works() {
-    let (_layer, handle) = build_reload_filter(&LogLevel::Info);
+    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
     assert!(handle.set_level(LogLevel::Debug).is_ok());
     assert!(handle.set_target_level("my_crate", LogLevel::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());

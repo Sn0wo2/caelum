@@ -5,6 +5,6 @@ fn main() {
         max.to_string(),
     )
     .unwrap();
-    println!("cargo::warning=Max Path Width: {max}");
     println!("cargo::rerun-if-changed=src");
+    println!("cargo::warning=Max Path Width: {max}");
 }

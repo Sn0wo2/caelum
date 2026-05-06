@@ -13,15 +13,13 @@ pub fn rotate_log_file(path: &Path, mode: LogRotation) -> crate::error::Result<(
     match mode {
         LogRotation::None => Ok(()),
         LogRotation::Rename => {
-            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-            let renamed = path.with_extension(format!("{timestamp}.log"));
+            let renamed = path.with_extension(format!("{}.log", now_timestamp()));
             std::fs::rename(path, renamed)?;
             Ok(())
         }
         #[cfg(feature = "compress")]
         LogRotation::Compress => {
-            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-            let gz_path = path.with_extension(format!("{timestamp}.log.gz"));
+            let gz_path = path.with_extension(format!("{}.log.gz", now_timestamp()));
             let input = std::fs::read(path)?;
             let output = std::fs::File::create(&gz_path)?;
             let mut encoder = flate2::write::GzEncoder::new(output, flate2::Compression::default());
@@ -31,4 +29,8 @@ pub fn rotate_log_file(path: &Path, mode: LogRotation) -> crate::error::Result<(
             Ok(())
         }
     }
+}
+
+fn now_timestamp() -> String {
+    chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }
