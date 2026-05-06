@@ -5,6 +5,7 @@ use tracing_subscriber::layer::Layered;
 
 use crate::config::{FilterDirective, LogFilter, LogLevel};
 use crate::error::{Result, SageTraceError};
+use crate::fmt::{Icons, LevelLabels, StyleConfig, Theme};
 
 pub(crate) type FmtLayer =
     Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
@@ -16,6 +17,7 @@ type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscr
 pub struct ReloadHandle {
     raw: RawReloadHandle,
     filter: Arc<RwLock<LogFilter>>,
+    style: Option<Arc<RwLock<StyleConfig>>>,
 }
 
 impl std::fmt::Debug for ReloadHandle {
@@ -55,6 +57,25 @@ impl ReloadHandle {
         })
     }
 
+    fn with_style(&self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
+        let style = self.style.as_ref().ok_or(SageTraceError::StyleNotConfigured)?;
+        let mut guard = style.write().map_err(|_| SageTraceError::LockPoisoned)?;
+        f(&mut guard);
+        Ok(())
+    }
+
+    pub fn set_icons(&self, icons: Icons) -> Result<()> {
+        self.with_style(|s| s.icons = icons)
+    }
+
+    pub fn set_theme(&self, theme: Theme) -> Result<()> {
+        self.with_style(|s| s.theme = theme)
+    }
+
+    pub fn set_labels(&self, labels: LevelLabels) -> Result<()> {
+        self.with_style(|s| s.labels = labels)
+    }
+
     fn update_filter(&self, update: impl FnOnce(&mut LogFilter)) -> Result<()> {
         let mut next = self.current_filter()?;
         update(&mut next);
@@ -86,6 +107,7 @@ impl ReloadHandle {
 
 pub fn build_reload_filter(
     level: &LogLevel,
+    style: Option<Arc<RwLock<StyleConfig>>>,
 ) -> (
     tracing_subscriber::reload::Layer<EnvFilter, InnerSubscriber>,
     ReloadHandle,
@@ -97,6 +119,7 @@ pub fn build_reload_filter(
         ReloadHandle {
             raw: raw_handle,
             filter: Arc::new(RwLock::new(LogFilter::new(level.clone()))),
+            style,
         },
     )
 }

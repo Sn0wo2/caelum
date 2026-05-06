@@ -6,6 +6,9 @@ pub enum SageTraceError {
     #[error("log filter state lock poisoned")]
     LockPoisoned,
 
+    #[error("formatter style reload not configured: call build_reload_filter with a StyleConfig")]
+    StyleNotConfigured,
+
     #[error("invalid filter directive: {0}")]
     InvalidDirective(#[from] tracing_subscriber::filter::ParseError),
 

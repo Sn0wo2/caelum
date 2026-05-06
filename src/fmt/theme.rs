@@ -2,7 +2,7 @@
 use nerd_font_symbols::{fa, ple};
 use owo_colors::Style;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct LevelLabels {
     pub error: &'static str,
     pub warn: &'static str,
@@ -39,7 +39,7 @@ impl Default for LevelLabels {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Icons {
     pub bracket_open: &'static str,
     pub bracket_close: &'static str,
@@ -78,6 +78,10 @@ impl Icons {
             span_join: fa::FA_ANGLE_RIGHT,
         }
     }
+
+    pub fn is_nerd(&self) -> bool {
+        self.bracket_open != "["
+    }
 }
 
 impl Default for Icons {
@@ -93,7 +97,7 @@ impl Default for Icons {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Theme {
     pub accent: Style,
     pub secondary: Style,
@@ -214,4 +218,10 @@ impl Default for Theme {
     fn default() -> Self {
         Self::trans_flag()
     }
+}
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StyleConfig {
+    pub theme: Theme,
+    pub icons: Icons,
+    pub labels: LevelLabels,
 }

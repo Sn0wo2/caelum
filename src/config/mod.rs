@@ -14,7 +14,7 @@ pub enum LogFormat {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 #[non_exhaustive]
 pub enum LogRotation {
     #[default]
@@ -139,7 +139,7 @@ impl<'de> serde::Deserialize<'de> for LogLevel {
             "debug" => Self::Debug,
             "trace" => Self::Trace,
             "off" => Self::Off,
-            other => Self::Custom(FilterDirective::new(other.to_string())),
+            other => Self::Custom(FilterDirective::new(other)),
         })
     }
 }
