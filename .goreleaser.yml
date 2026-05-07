@@ -19,7 +19,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - x86_64-unknown-linux-gnu
     flags:
@@ -32,7 +32,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - x86_64-unknown-linux-gnu
     flags:
@@ -45,7 +45,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - aarch64-unknown-linux-gnu
     flags:
@@ -56,7 +56,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - armv7-unknown-linux-gnueabihf
     flags:
@@ -67,7 +67,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - x86_64-pc-windows-gnu
     flags:
@@ -80,7 +80,7 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-cross.py
-    binary: caelum
+    binary: debug
     targets:
       - x86_64-pc-windows-gnu
     flags:
