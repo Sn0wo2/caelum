@@ -31,16 +31,28 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: caelum-cargo
+          cache-on-failure: true
+
+      - name: Cache cross
         uses: actions/cache@v5
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/bin/cross
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-cargo-tool-cross-v1
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-tool-cross-
+
+      - name: Install cross
+        run: |
+          if ! command -v cross &> /dev/null; then
+            cargo install cross
+          fi
 
       - name: Run GoReleaser snapshot
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot }}

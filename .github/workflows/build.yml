@@ -25,16 +25,22 @@ jobs:
         shell: bash
         run: rustup component add rust-src
 
-      - name: Cache cargo registry
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: caelum-cargo
+          cache-on-failure: true
+
+      - name: Cache cross
         uses: actions/cache@v5
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/bin/cross
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-cargo-tool-cross-v1
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-tool-cross-
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v7
@@ -43,8 +49,14 @@ jobs:
           version: "~> v2"
           install-only: true
 
+      - name: Install cross
+        run: |
+          if ! command -v cross &> /dev/null; then
+            cargo install cross
+          fi
+
       - name: Build
-        run: goreleaser build --snapshot --clean --config .goreleaser.yml
+        run: goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
