@@ -4,7 +4,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::Layered;
 
 use crate::config::{FilterDirective, LogFilter, LogLevel};
-use crate::error::{Result, CaelumError};
+use crate::error::{CaelumError, Result};
 use crate::fmt::{Icons, LevelLabels, StyleConfig, Theme};
 
 pub(crate) type FmtLayer =
@@ -91,10 +91,7 @@ impl ReloadHandle {
     }
 
     fn store_filter(&self, filter: LogFilter) -> Result<()> {
-        *self
-            .filter
-            .write()
-            .map_err(|_| CaelumError::LockPoisoned)? = filter;
+        *self.filter.write().map_err(|_| CaelumError::LockPoisoned)? = filter;
         Ok(())
     }
 

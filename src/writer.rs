@@ -116,7 +116,6 @@ pub(crate) fn native_async_writer(target: AsyncWriterTarget) -> NativeAsyncWrite
     let (writer, guard) = match target {
         AsyncWriterTarget::Stdout => tracing_appender::non_blocking(io::stdout()),
         AsyncWriterTarget::Stderr => tracing_appender::non_blocking(io::stderr()),
-
     };
 
     NativeAsyncWriter {
