@@ -91,7 +91,7 @@ fn format_path_strips_src() {
 #[test]
 fn rotate_nonexistent_file_is_noop() {
     let path = std::env::temp_dir().join("caelum-test-nonexistent.log");
-    let _ = std::fs::remove_file(&path);
+    drop(std::fs::remove_file(&path));
     assert!(rotate_log_file(&path, LogRotation::Rename).is_ok());
     #[cfg(feature = "compress")]
     assert!(rotate_log_file(&path, LogRotation::Compress).is_ok());
@@ -101,21 +101,21 @@ fn rotate_nonexistent_file_is_noop() {
 #[test]
 fn rotate_none_keeps_file() {
     let dir = std::env::temp_dir().join("caelum-test-fmt-none");
-    let _ = std::fs::create_dir_all(&dir);
+    drop(std::fs::create_dir_all(&dir));
     let path = dir.join("app.log");
     std::fs::write(&path, b"hello\n").unwrap();
 
     rotate_log_file(&path, LogRotation::None).unwrap();
     assert!(path.exists());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "hello\n");
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
 }
 
 #[test]
 fn rotate_rename() {
     let dir = std::env::temp_dir().join("caelum-test-fmt-rename");
-    let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::create_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
+    drop(std::fs::create_dir_all(&dir));
     let path = dir.join("app.log");
     std::fs::write(&path, b"old content\n").unwrap();
 
@@ -126,15 +126,15 @@ fn rotate_rename() {
     assert_eq!(entries.len(), 1);
     let content = std::fs::read_to_string(entries[0].path()).unwrap();
     assert_eq!(content, "old content\n");
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
 }
 
 #[test]
 #[cfg(feature = "compress")]
 fn rotate_compress() {
     let dir = std::env::temp_dir().join("caelum-test-fmt-compress");
-    let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::create_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
+    drop(std::fs::create_dir_all(&dir));
     let path = dir.join("app.log");
     std::fs::write(&path, b"compress me\n").unwrap();
 
@@ -147,5 +147,5 @@ fn rotate_compress() {
     assert!(gz_data.len() > 2);
     assert_eq!(gz_data[0], 0x1f);
     assert_eq!(gz_data[1], 0x8b);
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
 }
