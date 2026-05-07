@@ -109,9 +109,7 @@ impl AnsiFormatter {
             Cow::Borrowed(file)
         };
         let stripped = normalized.find("src/").map_or(&*normalized, |i| {
-            normalized
-                .get(i.saturating_add(4)..)
-                .unwrap_or(&normalized)
+            normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
         });
 
         Self::smart_truncate(stripped, line, max_width)
@@ -124,15 +122,11 @@ impl AnsiFormatter {
         }
 
         if let Some(last_slash) = path.rfind('/') {
-            let tail = path
-                .get(last_slash.saturating_add(1)..)
-                .unwrap_or(path);
+            let tail = path.get(last_slash.saturating_add(1)..).unwrap_or(path);
             let file_part = format!("{tail}:{line}");
             if file_part.len().saturating_add(2) <= max_width {
                 let dir_part = path.get(..last_slash).unwrap_or("");
-                let remaining = max_width
-                    .saturating_sub(file_part.len())
-                    .saturating_sub(1);
+                let remaining = max_width.saturating_sub(file_part.len()).saturating_sub(1);
                 let dir_start = dir_part.len().saturating_sub(remaining);
                 let dir_tail = dir_part.get(dir_start..).unwrap_or("");
                 let clean_dir = dir_tail.find('/').map_or(dir_tail, |i| {
@@ -173,11 +167,7 @@ impl AnsiFormatter {
         Ok(())
     }
 
-    fn format_fields(
-        writer: &mut Writer<'_>,
-        event: &Event<'_>,
-        theme: &Theme,
-    ) -> fmt::Result {
+    fn format_fields(writer: &mut Writer<'_>, event: &Event<'_>, theme: &Theme) -> fmt::Result {
         let mut visitor = EventVisitor::default();
         event.record(&mut visitor);
 
