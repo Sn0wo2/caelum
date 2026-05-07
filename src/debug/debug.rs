@@ -1,11 +1,14 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 use std::sync::LazyLock;
 
 use caelum::{
     AnsiFormatter, ConsoleConfig, ConsoleWriter, FileLoggingConfig, FilterDirective, Icons,
-    LevelLabels, LogFormat, LogLevel, LogRotation, LoggingConfig, Theme, build_console_layer,
-    build_console_layer_with, build_file_layer, build_reload_filter, init_tracing, rotate_log_file,
+    LevelLabels, LogFormat, LogLevel, LogRotation, Theme, build_console_layer,
+    build_console_layer_with, build_reload_filter, rotate_log_file,
 };
 use tracing_subscriber::prelude::*;
+#[cfg(feature = "file")]
+use caelum::{LoggingConfig, build_file_layer, init_tracing};
 
 fn sep(c: &str, n: usize) -> String {
     c.repeat(n)
@@ -474,7 +477,7 @@ fn main() {
     sub("build_console_layer — verify layer construction");
     {
         let layer = build_console_layer(&ConsoleConfig::default());
-        let _ = layer;
+        drop(layer);
         success("build_console_layer(default)");
 
         let layer = build_console_layer(&ConsoleConfig {
@@ -483,14 +486,14 @@ fn main() {
             ansi: false,
             ..Default::default()
         });
-        let _ = layer;
+        drop(layer);
         success("build_console_layer(json+stderr)");
     }
 
     sub("File log rotation — Rename (and Compress if enabled)");
     {
         let tmp_dir = std::env::temp_dir().join("caelum-debug");
-        let _ = std::fs::create_dir_all(&tmp_dir);
+        drop(std::fs::create_dir_all(&tmp_dir));
         let log_path = tmp_dir.join("test.log");
 
         let file_config = FileLoggingConfig {
@@ -524,14 +527,14 @@ fn main() {
                 println!("      \u{00b7} {}", entry.file_name().to_string_lossy());
             }
         }
-        let _ = std::fs::remove_dir_all(&tmp_dir);
+        drop(std::fs::remove_dir_all(&tmp_dir));
     }
 
     #[cfg(feature = "file")]
     {
         sub("build_file_layer — file appender construction");
         let tmp_dir = std::env::temp_dir().join("caelum-debug-file");
-        let _ = std::fs::create_dir_all(&tmp_dir);
+        drop(std::fs::create_dir_all(&tmp_dir));
 
         let result = build_file_layer(&FileLoggingConfig {
             path: tmp_dir.join("app.log"),
@@ -544,14 +547,14 @@ fn main() {
             }
             Err(e) => fail(&format!("build_file_layer: {e}")),
         }
-        let _ = std::fs::remove_dir_all(&tmp_dir);
+        drop(std::fs::remove_dir_all(&tmp_dir));
     }
 
     #[cfg(feature = "file")]
     {
         sub("init_tracing — end-to-end: subscriber + console + file + reload");
         let tmp_dir = std::env::temp_dir().join("caelum-debug-full");
-        let _ = std::fs::create_dir_all(&tmp_dir);
+        drop(std::fs::create_dir_all(&tmp_dir));
 
         let config = LoggingConfig {
             level: LogLevel::Debug,
@@ -585,7 +588,7 @@ fn main() {
             }
             Err(e) => fail(&format!("init_tracing: {e}")),
         }
-        let _ = std::fs::remove_dir_all(&tmp_dir);
+        drop(std::fs::remove_dir_all(&tmp_dir));
     }
 
     println!();

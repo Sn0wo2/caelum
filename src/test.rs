@@ -50,7 +50,7 @@ fn build_console_layer_with_nerd_icons() {
 #[test]
 fn build_file_layer_creates_dirs() {
     let dir = std::env::temp_dir().join("caelum-test-filelayer");
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
     let nested = dir.join("a").join("b");
     let log_path = nested.join("app.log");
 
@@ -64,7 +64,7 @@ fn build_file_layer_creates_dirs() {
     assert!(r.path.parent().unwrap().exists());
     drop(r.guard);
 
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
 }
 
 #[test]
@@ -87,12 +87,12 @@ fn build_reload_filter_works() {
 #[test]
 fn resolve_log_path_new_file() {
     let dir = std::env::temp_dir().join("caelum-test-resolve");
-    let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::create_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
+    drop(std::fs::create_dir_all(&dir));
     let path = dir.join("new.log");
 
     let resolved = resolve_log_path(&path);
     assert_eq!(resolved, path);
 
-    let _ = std::fs::remove_dir_all(&dir);
+    drop(std::fs::remove_dir_all(&dir));
 }
