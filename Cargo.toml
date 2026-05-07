@@ -1,9 +1,9 @@
 [package]
-name = "sage-trace"
+name = "caelum"
 version = "0.0.0"
 edition = "2024"
 description = "A customizable logging library for Rust"
-repository = "https://github.com/Sn0wo2/sage-trace"
+repository = "https://github.com/Sn0wo2/caelum"
 license = "MIT"
 keywords = ["tracing", "logging", "formatting", "colors", "theme"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
@@ -21,7 +21,7 @@ unicode = []
 nerd = ["dep:nerd-font-symbols"]
 
 [dependencies]
-derive_more = { version = "1", features = ["display", "from"] }
+derive_more = { version = "2.1.1", features = ["display", "from"] }
 smart-default = "0.7"
 thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
@@ -38,7 +38,7 @@ tracing-subscriber = {
 }
 
 [build-dependencies]
-sage-trace-build = { version = "0.0.0", path = "crates/sage-trace-build" }
+caelum-build = { version = "0.0.0", path = "crates/caelum-build" }
 
 [[bin]]
 name = "debug"
@@ -51,3 +51,43 @@ codegen-units = 1
 panic = "abort"
 strip = true
 incremental = false
+
+[lints.rust]
+unsafe_code = "forbid"
+future_incompatible = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+rust_2024_compatibility = { level = "warn", priority = -1 }
+let_underscore = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+unused = { level = "warn", priority = -1 }
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+unreachable_pub = "warn"
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+single_use_lifetimes = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"
+variant_size_differences = "warn"
+elided_lifetimes_in_paths = "warn"
+
+[lints.clippy]
+all = "warn"
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+wildcard_imports = "warn"
+str_to_string = "warn"
+mem_forget = "warn"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "warn"
+invalid_codeblock_attributes = "warn"
+bare_urls = "warn"
+unescaped_backticks = "warn"
