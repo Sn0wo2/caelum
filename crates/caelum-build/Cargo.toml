@@ -1,0 +1,11 @@
+[package]
+name = "caelum-build"
+version = "0.0.0"
+edition = "2024"
+description = "Build-time helper for caelum path width calculation"
+repository = "https://github.com/Sn0wo2/caelum"
+publish = true
+license = "MIT"
+
+[dependencies]
+walkdir = "2.5.0"
