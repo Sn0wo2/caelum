@@ -93,12 +93,10 @@ source:
   enabled: false
 
 archives:
-  - id: linux
+  - id: linux-amd64-v2
     ids:
       - caelum-linux-amd64-v2
-      - caelum-linux-amd64-v3
-      - caelum-linux-arm64
-      - caelum-linux-armv7
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64_v2"
     formats:
       - tar.gz
     files:
@@ -107,10 +105,58 @@ archives:
       - config.toml
       - config.schema.json
 
-  - id: windows
+  - id: linux-amd64-v3
+    ids:
+      - caelum-linux-amd64-v3
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64_v3"
+    formats:
+      - tar.gz
+    files:
+      - LICENSE
+      - README.md
+      - config.toml
+      - config.schema.json
+
+  - id: linux-arm64
+    ids:
+      - caelum-linux-arm64
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_arm64"
+    formats:
+      - tar.gz
+    files:
+      - LICENSE
+      - README.md
+      - config.toml
+      - config.schema.json
+
+  - id: linux-armv7
+    ids:
+      - caelum-linux-armv7
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_armv7"
+    formats:
+      - tar.gz
+    files:
+      - LICENSE
+      - README.md
+      - config.toml
+      - config.schema.json
+
+  - id: windows-amd64-v2
     ids:
       - caelum-windows-amd64-v2
+    name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64_v2"
+    formats:
+      - zip
+    files:
+      - LICENSE
+      - README.md
+      - config.toml
+      - config.schema.json
+
+  - id: windows-amd64-v3
+    ids:
       - caelum-windows-amd64-v3
+    name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64_v3"
     formats:
       - zip
     files:
