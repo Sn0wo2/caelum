@@ -6,9 +6,9 @@ use caelum::{
     LevelLabels, LogFormat, LogLevel, LogRotation, Theme, build_console_layer,
     build_console_layer_with, build_reload_filter, rotate_log_file,
 };
-use tracing_subscriber::prelude::*;
 #[cfg(feature = "file")]
 use caelum::{LoggingConfig, build_file_layer, init_tracing};
+use tracing_subscriber::prelude::*;
 
 fn sep(c: &str, n: usize) -> String {
     c.repeat(n)
