@@ -79,6 +79,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+      - name: Publish caelum-build to crates.io
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
+        run: cargo publish --manifest-path crates/caelum-build/Cargo.toml
+
+      - name: Publish caelum to crates.io
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
+        run: cargo publish
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
         with:

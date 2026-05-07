@@ -93,13 +93,6 @@ builds:
       - CARGO_TARGET_DIR=target/windows-amd64-v3
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
-after:
-  hooks:
-    - >-
-      {{ if not .IsSnapshot }}cargo publish --manifest-path crates/caelum-build/Cargo.toml{{ else }}echo "skip publish (snapshot)"{{ end }}
-    - >-
-      {{ if not .IsSnapshot }}cargo publish{{ else }}echo "skip publish (snapshot)"{{ end }}
-
 source:
   enabled: false
 
