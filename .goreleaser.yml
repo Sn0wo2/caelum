@@ -92,6 +92,10 @@ builds:
 source:
   enabled: false
 
+common_archive_files: &common_archive_files
+  - LICENSE
+  - README.md
+
 archives:
   - id: linux-amd64-v2
     ids:
@@ -99,11 +103,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64_v2"
     formats:
       - tar.gz
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
   - id: linux-amd64-v3
     ids:
@@ -111,11 +111,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64_v3"
     formats:
       - tar.gz
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
   - id: linux-arm64
     ids:
@@ -123,11 +119,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_linux_arm64"
     formats:
       - tar.gz
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
   - id: linux-armv7
     ids:
@@ -135,11 +127,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_linux_armv7"
     formats:
       - tar.gz
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
   - id: windows-amd64-v2
     ids:
@@ -147,11 +135,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64_v2"
     formats:
       - zip
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
   - id: windows-amd64-v3
     ids:
@@ -159,11 +143,7 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64_v3"
     formats:
       - zip
-    files:
-      - LICENSE
-      - README.md
-      - config.toml
-      - config.schema.json
+    files: *common_archive_files
 
 checksum:
   name_template: "checksums.txt"
