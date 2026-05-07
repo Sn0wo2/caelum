@@ -92,10 +92,6 @@ builds:
 source:
   enabled: false
 
-common_archive_files: &common_archive_files
-  - LICENSE
-  - README.md
-
 archives:
   - id: linux-amd64-v2
     ids:
@@ -103,7 +99,9 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64_v2"
     formats:
       - tar.gz
-    files: *common_archive_files
+    files: &common_archive_files
+      - LICENSE
+      - README.md
 
   - id: linux-amd64-v3
     ids:
