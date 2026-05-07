@@ -90,7 +90,7 @@ fn format_path_strips_src() {
 
 #[test]
 fn rotate_nonexistent_file_is_noop() {
-    let path = std::env::temp_dir().join("sage-trace-test-nonexistent.log");
+    let path = std::env::temp_dir().join("caelum-test-nonexistent.log");
     let _ = std::fs::remove_file(&path);
     assert!(rotate_log_file(&path, LogRotation::Rename).is_ok());
     #[cfg(feature = "compress")]
@@ -100,7 +100,7 @@ fn rotate_nonexistent_file_is_noop() {
 
 #[test]
 fn rotate_none_keeps_file() {
-    let dir = std::env::temp_dir().join("sage-trace-test-fmt-none");
+    let dir = std::env::temp_dir().join("caelum-test-fmt-none");
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("app.log");
     std::fs::write(&path, b"hello\n").unwrap();
@@ -113,7 +113,7 @@ fn rotate_none_keeps_file() {
 
 #[test]
 fn rotate_rename() {
-    let dir = std::env::temp_dir().join("sage-trace-test-fmt-rename");
+    let dir = std::env::temp_dir().join("caelum-test-fmt-rename");
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("app.log");
@@ -132,7 +132,7 @@ fn rotate_rename() {
 #[test]
 #[cfg(feature = "compress")]
 fn rotate_compress() {
-    let dir = std::env::temp_dir().join("sage-trace-test-fmt-compress");
+    let dir = std::env::temp_dir().join("caelum-test-fmt-compress");
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("app.log");
