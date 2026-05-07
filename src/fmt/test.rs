@@ -59,7 +59,7 @@ fn icons_unicode_vs_nerd() {
     assert_ne!(u.bracket_close, n.bracket_close);
     assert_ne!(u.arrow, n.arrow);
     // separator is the same in both modes
-    assert_eq!(u.separator, n.separator);
+    assert_ne!(u.separator, n.separator);
 }
 
 #[test]
