@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Auto-detect: use cargo for native builds, cross for cross-compilation."""
 
-import os
 import re
 import subprocess
 import sys

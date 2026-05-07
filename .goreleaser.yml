@@ -26,7 +26,6 @@ builds:
       - --release
       - --all-features
     env:
-      - CARGO_TARGET_DIR=target/linux-amd64-v2
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
   - id: caelum-linux-amd64-v3
@@ -40,7 +39,6 @@ builds:
       - --release
       - --all-features
     env:
-      - CARGO_TARGET_DIR=target/linux-amd64-v3
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
   - id: caelum-linux-arm64
@@ -76,7 +74,6 @@ builds:
       - --release
       - --all-features
     env:
-      - CARGO_TARGET_DIR=target/windows-amd64-v2
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
   - id: caelum-windows-amd64-v3
@@ -90,7 +87,6 @@ builds:
       - --release
       - --all-features
     env:
-      - CARGO_TARGET_DIR=target/windows-amd64-v3
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
 source:
