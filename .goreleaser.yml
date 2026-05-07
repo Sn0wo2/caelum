@@ -18,7 +18,7 @@ builds:
   - id: caelum-linux-amd64-v2
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - x86_64-unknown-linux-gnu
@@ -26,12 +26,13 @@ builds:
       - --release
       - --all-features
     env:
+      - CARGO_TARGET_DIR=target/linux-amd64-v2
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
   - id: caelum-linux-amd64-v3
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - x86_64-unknown-linux-gnu
@@ -39,12 +40,13 @@ builds:
       - --release
       - --all-features
     env:
+      - CARGO_TARGET_DIR=target/linux-amd64-v3
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
   - id: caelum-linux-arm64
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - aarch64-unknown-linux-gnu
@@ -55,7 +57,7 @@ builds:
   - id: caelum-linux-armv7
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - armv7-unknown-linux-gnueabihf
@@ -66,7 +68,7 @@ builds:
   - id: caelum-windows-amd64-v2
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - x86_64-pc-windows-gnu
@@ -74,12 +76,13 @@ builds:
       - --release
       - --all-features
     env:
+      - CARGO_TARGET_DIR=target/windows-amd64-v2
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
   - id: caelum-windows-amd64-v3
     builder: rust
     command: build
-    tool: python3 scripts/cargo-or-cross.py
+    tool: ./scripts/cargo-or-cross.py
     binary: caelum
     targets:
       - x86_64-pc-windows-gnu
@@ -87,7 +90,15 @@ builds:
       - --release
       - --all-features
     env:
+      - CARGO_TARGET_DIR=target/windows-amd64-v3
       - RUSTFLAGS=-C target-cpu=x86-64-v3
+
+after:
+  hooks:
+    - >-
+      {{ if not .IsSnapshot }}cargo publish --manifest-path crates/caelum-build/Cargo.toml{{ else }}echo "skip publish (snapshot)"{{ end }}
+    - >-
+      {{ if not .IsSnapshot }}cargo publish{{ else }}echo "skip publish (snapshot)"{{ end }}
 
 source:
   enabled: false

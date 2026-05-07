@@ -55,6 +55,9 @@ jobs:
             cargo install cross
           fi
 
+      - name: Prepare scripts
+        run: chmod +x ./scripts/cargo-or-cross.py
+
       - name: Build
         run: goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml
 
