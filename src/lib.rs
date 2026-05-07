@@ -10,7 +10,7 @@ mod rotation;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 mod writer;
 
-pub use error::{Result, SageTraceError};
+pub use error::{Result, CaelumError};
 pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
 pub use rotation::rotate_log_file;
 
@@ -152,7 +152,7 @@ impl std::fmt::Debug for FileLayerParts {
 }
 
 #[cfg(feature = "file")]
-pub fn build_file_layer(file_config: &FileLoggingConfig) -> error::Result<FileLayerParts> {
+pub fn build_file_layer(file_config: &FileLoggingConfig) -> Result<FileLayerParts> {
     let path = &file_config.path;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -179,7 +179,7 @@ pub fn build_file_layer(file_config: &FileLoggingConfig) -> error::Result<FileLa
 pub use crate::reload::build_reload_filter;
 
 #[cfg(feature = "file")]
-pub fn init_tracing(config: &LoggingConfig) -> error::Result<TracingGuard> {
+pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
     let (filter, reload_handle) = build_reload_filter(&config.level, None);
 
     let console_layer: FmtLayer = match &config.console {

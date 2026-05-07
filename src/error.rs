@@ -2,7 +2,7 @@ use std::io;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum SageTraceError {
+pub enum CaelumError {
     #[error("log filter state lock poisoned")]
     LockPoisoned,
 
@@ -22,4 +22,4 @@ pub enum SageTraceError {
     SetGlobalDefault(#[from] tracing::subscriber::SetGlobalDefaultError),
 }
 
-pub type Result<T> = std::result::Result<T, SageTraceError>;
+pub type Result<T> = std::result::Result<T, CaelumError>;
