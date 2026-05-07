@@ -104,7 +104,7 @@ impl LogFilter {
     }
 
     pub fn as_filter_directive(&self) -> String {
-        let mut directive = self.level.as_filter_directive().to_string();
+        let mut directive = String::from(self.level.as_filter_directive());
         for (target, level) in &self.targets {
             directive.push(',');
             directive.push_str(target);

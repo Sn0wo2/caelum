@@ -32,7 +32,7 @@ fn build_console_layer_no_ansi() {
 #[test]
 fn build_console_layer_custom_time() {
     let cfg = ConsoleConfig {
-        time_format: Some("%Y/%m/%d".to_string()),
+        time_format: Some(String::from("%Y/%m/%d")),
         ..Default::default()
     };
     let _layer = build_console_layer(&cfg);
@@ -49,7 +49,7 @@ fn build_console_layer_with_nerd_icons() {
 #[cfg(feature = "file")]
 #[test]
 fn build_file_layer_creates_dirs() {
-    let dir = std::env::temp_dir().join("sage-trace-test-filelayer");
+    let dir = std::env::temp_dir().join("caelum-test-filelayer");
     let _ = std::fs::remove_dir_all(&dir);
     let nested = dir.join("a").join("b");
     let log_path = nested.join("app.log");
@@ -86,7 +86,7 @@ fn build_reload_filter_works() {
 #[cfg(feature = "file")]
 #[test]
 fn resolve_log_path_new_file() {
-    let dir = std::env::temp_dir().join("sage-trace-test-resolve");
+    let dir = std::env::temp_dir().join("caelum-test-resolve");
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("new.log");
