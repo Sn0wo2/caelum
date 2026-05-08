@@ -61,6 +61,8 @@ jobs:
         run: |
           command -v cargo-zigbuild &> /dev/null || pip3 install cargo-zigbuild
 
+      - name: Ensure build script is executable
+        run: chmod +x scripts/cargo-or-zigbuild.py
       - name: Determine version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
