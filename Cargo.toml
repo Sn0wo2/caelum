@@ -1,6 +1,6 @@
 [package]
 name = "caelum"
-version = "0.0.1"
+version.workspace = true
 edition = "2024"
 description = "A customizable logging library for Rust"
 repository = "https://github.com/Sn0wo2/caelum"
@@ -9,6 +9,14 @@ keywords = ["tracing", "logging", "formatting", "colors", "theme"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
 exclude = ["src/debug/", ".github/", ".idea/", "img.png"]
 
+[workspace]
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+
+[workspace.dependencies]
+caelum-build = { path = "crates/caelum-build" }
 [features]
 default = ["unicode", "file"]
 async = ["custom-async", "native-async"]
@@ -35,7 +43,7 @@ tokio = { version = "1", default-features = false, features = ["io-std", "io-uti
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }
 
 [build-dependencies]
-caelum-build = { path = "crates/caelum-build" }
+caelum-build = { workspace = true }
 
 [[bin]]
 name = "debug"

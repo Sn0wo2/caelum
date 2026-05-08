@@ -84,8 +84,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
           command -v cargo-set-version &> /dev/null || cargo install cargo-edit --locked
-          cargo set-version -p caelum-build "$VERSION"
-          cargo set-version -p caelum "$VERSION"
+          cargo set-version --workspace "$VERSION"
           cargo update -w
 
       - name: Commit and tag
@@ -130,7 +129,6 @@ jobs:
       - name: Publish caelum to crates.io
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: cargo publish --allow-dirty
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
