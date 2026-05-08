@@ -21,3 +21,6 @@ target
 .idea/
 
 .vscode/
+
+# caelum
+.zig-cache/

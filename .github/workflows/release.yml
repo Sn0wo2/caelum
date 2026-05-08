@@ -100,6 +100,9 @@ jobs:
             git tag "v$VERSION"
           fi
 
+      - name: Clean up build artifacts
+        run: rm -rf .zig-cache/
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
