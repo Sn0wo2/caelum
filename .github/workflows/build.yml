@@ -31,11 +31,22 @@ jobs:
           shared-key: caelum-cargo
           cache-on-failure: true
 
-      - name: Cache cross
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Cache cargo-zigbuild
         uses: actions/cache@v5
         with:
-          path: ~/.cargo/bin/cross
-          key: ${{ runner.os }}-cargo-tool-cross-v1
+          path: ~/.cargo/bin/cargo-zigbuild
+          key: ${{ runner.os }}-cargo-tool-zigbuild-v1
+
+      - name: Install cargo-zigbuild
+        run: |
+          if ! command -v cargo-zigbuild &> /dev/null; then
+            pip3 install cargo-zigbuild
+          fi
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v7
@@ -44,14 +55,8 @@ jobs:
           version: "~> v2"
           install-only: true
 
-      - name: Install cross
-        run: |
-          if ! command -v cross &> /dev/null; then
-            cargo install cross
-          fi
-
       - name: Prepare scripts
-        run: chmod +x ./scripts/cargo-or-cross.py
+        run: chmod +x ./scripts/cargo-or-zigbuild.py
 
       - name: Build
         run: goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml

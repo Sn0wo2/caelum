@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-detect: use cargo for native builds, cross for cross-compilation."""
+"""Auto-detect: use cargo for native builds, cargo-zigbuild for cross-compilation."""
 
 import re
 import subprocess
@@ -30,9 +30,9 @@ def main():
     host = get_host_target()
     target = get_target_from_args(args)
 
-    tool = "cargo" if (target is None or target == host) else "cross"
+    command = ["cargo"] if (target is None or target == host) else ["cargo", "zigbuild"]
 
-    sys.exit(subprocess.call([tool] + args))
+    sys.exit(subprocess.call(command + args))
 
 
 if __name__ == "__main__":
