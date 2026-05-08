@@ -72,10 +72,18 @@ jobs:
             echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
           fi
 
+      - name: Cache cargo-edit
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/cargo-set-version
+            ~/.cargo/bin/cargo-upgrade
+          key: ${{ runner.os }}-cargo-tool-cargo-edit-v1
+
       - name: Bump version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
-          cargo install cargo-edit --locked
+          command -v cargo-set-version &> /dev/null || cargo install cargo-edit --locked
           cargo set-version -p caelum-build "$VERSION"
           cargo set-version -p caelum "$VERSION"
           cargo update -w
