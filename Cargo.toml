@@ -35,7 +35,7 @@ tokio = { version = "1", default-features = false, features = ["io-std", "io-uti
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }
 
 [build-dependencies]
-caelum-build = { version = "0.0.0", path = "crates/caelum-build" }
+caelum-build = { path = "crates/caelum-build" }
 
 [[bin]]
 name = "debug"

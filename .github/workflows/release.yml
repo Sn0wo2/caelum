@@ -6,21 +6,75 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      version:
+        description: "Version to release (e.g. 0.1.0)"
+        required: true
+        type: string
       snapshot:
-        description: "Run GoReleaser in snapshot mode without publishing to crates.io"
+        description: "Snapshot mode (no publish, no tag, no PR)"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
+  pull-requests: write
 
 env:
   CARGO_TERM_COLOR: always
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
-  release:
-    name: Release
+  bump:
+    name: Bump Version
+    if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo-edit
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-set-version
+          key: ${{ runner.os }}-cargo-tool-edit-v1
+
+      - name: Install cargo-edit
+        run: |
+          command -v cargo-set-version &> /dev/null || cargo install cargo-edit
+
+      - name: Bump versions
+        run: |
+          cargo set-version -p caelum-build "${{ inputs.version }}"
+          cargo set-version -p caelum "${{ inputs.version }}"
+          cargo update -w
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: release v${{ inputs.version }}"
+          branch: release/v${{ inputs.version }}
+          delete-branch: true
+          title: "chore: release v${{ inputs.version }}"
+          body: |
+            Bumps all crate versions to `${{ inputs.version }}`.
+
+            After merging, push the tag to trigger the release:
+            ```bash
+            git pull
+            git tag v${{ inputs.version }}
+            git push origin v${{ inputs.version }}
+            ```
+          labels: |
+            automated
+            release
+
+  snapshot:
+    name: Snapshot Build
+    if: github.event_name == 'workflow_dispatch' && inputs.snapshot
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,7 +88,6 @@ jobs:
           targets: x86_64-unknown-linux-gnu,x86_64-pc-windows-gnu,aarch64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf
 
       - name: Install rust-src
-        shell: bash
         run: rustup component add rust-src
 
       - name: Cache cargo
@@ -56,24 +109,12 @@ jobs:
 
       - name: Install cargo-zigbuild
         run: |
-          if ! command -v cargo-zigbuild &> /dev/null; then
-            pip3 install cargo-zigbuild
-          fi
+          command -v cargo-zigbuild &> /dev/null || pip3 install cargo-zigbuild
 
       - name: Prepare scripts
         run: chmod +x ./scripts/cargo-or-zigbuild.py
 
-      - name: Set crate versions from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" Cargo.toml
-          sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" crates/caelum-build/Cargo.toml
-          sed -i "s/caelum-build = { version = \".*\"/caelum-build = { version = \"$VERSION\"/" Cargo.toml
-          cargo update -w
-
       - name: Run GoReleaser snapshot
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot }}
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -82,8 +123,56 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshot-artifacts
+          path: dist/*
+          retention-days: 7
+
+  release:
+    name: Release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu,x86_64-pc-windows-gnu,aarch64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf
+
+      - name: Install rust-src
+        run: rustup component add rust-src
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: caelum-cargo
+          cache-on-failure: true
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Cache cargo-zigbuild
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-zigbuild
+          key: ${{ runner.os }}-cargo-tool-zigbuild-v1
+
+      - name: Install cargo-zigbuild
+        run: |
+          command -v cargo-zigbuild &> /dev/null || pip3 install cargo-zigbuild
+
+      - name: Prepare scripts
+        run: chmod +x ./scripts/cargo-or-zigbuild.py
+
       - name: Run GoReleaser release
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -93,12 +182,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish caelum-build to crates.io
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
-        run: cargo publish --manifest-path crates/caelum-build/Cargo.toml
+        run: cargo publish --manifest-path crates/caelum-build/Cargo.toml --allow-dirty
 
       - name: Publish caelum to crates.io
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
-        run: cargo publish
+        run: cargo publish --allow-dirty
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7

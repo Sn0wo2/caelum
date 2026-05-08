@@ -30,7 +30,12 @@ def main():
     host = get_host_target()
     target = get_target_from_args(args)
 
-    command = ["cargo"] if (target is None or target == host) else ["cargo", "zigbuild"]
+    if target is None or target == host:
+        command = ["cargo"]
+    else:
+        command = ["cargo", "zigbuild"]
+        if args and args[0] == "build":
+            args = args[1:]
 
     sys.exit(subprocess.call(command + args))
 
