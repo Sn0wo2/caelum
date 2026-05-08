@@ -46,13 +46,8 @@ jobs:
       - name: Cache cross
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/bin/cross
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
+          path: ~/.cargo/bin/cross
           key: ${{ runner.os }}-cargo-tool-cross-v1
-          restore-keys: |
-            ${{ runner.os }}-cargo-tool-cross-
 
       - name: Install cross
         run: |
@@ -72,7 +67,6 @@ jobs:
           args: release --snapshot --clean --skip=before --config .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Run GoReleaser release
         if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}
@@ -83,7 +77,6 @@ jobs:
           args: release --clean --skip=before --config .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish caelum-build to crates.io
         if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot) }}

@@ -172,13 +172,8 @@ jobs:
       - name: Cache cargo-deny
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/bin/cargo-deny
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
+          path: ~/.cargo/bin/cargo-deny
           key: ${{ runner.os }}-cargo-tool-deny-v1
-          restore-keys: |
-            ${{ runner.os }}-cargo-tool-deny-
 
       - name: Install cargo-deny
         run: |
@@ -208,13 +203,8 @@ jobs:
       - name: Cache cargo-audit
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/bin/cargo-audit
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
+          path: ~/.cargo/bin/cargo-audit
           key: ${{ runner.os }}-cargo-tool-audit-v1
-          restore-keys: |
-            ${{ runner.os }}-cargo-tool-audit-
 
       - name: Install cargo-audit
         run: |
@@ -239,19 +229,14 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: caelum-cargo-nightly
           cache-on-failure: true
 
       - name: Cache cargo-geiger
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/bin/cargo-geiger
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
+          path: ~/.cargo/bin/cargo-geiger
           key: ${{ runner.os }}-cargo-tool-geiger-v1
-          restore-keys: |
-            ${{ runner.os }}-cargo-tool-geiger-
 
       - name: Install cargo-geiger
         run: |
@@ -299,13 +284,8 @@ jobs:
       - name: Cache cargo-semver-checks
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/bin/cargo-semver-checks
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
+          path: ~/.cargo/bin/cargo-semver-checks
           key: ${{ runner.os }}-cargo-tool-semver-checks-v1
-          restore-keys: |
-            ${{ runner.os }}-cargo-tool-semver-checks-
 
       - name: Install cargo-semver-checks
         run: |
