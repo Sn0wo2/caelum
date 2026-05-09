@@ -6,7 +6,6 @@ use acta::{
     LevelLabels, LogFormat, LogLevel, LogRotation, Theme, build_console_layer,
     build_console_layer_with, build_reload_filter, rotate_log_file,
 };
-#[cfg(feature = "file")]
 use acta::{LoggingConfig, build_file_layer, init_tracing};
 use tracing_subscriber::prelude::*;
 
@@ -105,7 +104,6 @@ fn main() {
         tracing::subscriber::with_default(subscriber, || demo_logs("unicode"));
     }
 
-    #[cfg(feature = "nerd")]
     {
         sub("Compact + Nerd Font icons");
         let console = ConsoleConfig::default();
@@ -379,7 +377,6 @@ fn main() {
             info("reload → set_labels(long)");
             tracing::warn!("labels switched to full-word");
 
-            #[cfg(feature = "nerd")]
             {
                 reload_handle.set_icons(Icons::nerd()).unwrap();
                 info("reload → set_icons(nerd)");
@@ -512,7 +509,6 @@ fn main() {
             Err(e) => fail(&format!("rotate(Rename): {e}")),
         }
 
-        #[cfg(feature = "compress")]
         {
             std::fs::write(&log_path, b"compress me\n").ok();
             match rotate_log_file(&log_path, LogRotation::Compress) {
@@ -530,7 +526,6 @@ fn main() {
         drop(std::fs::remove_dir_all(&tmp_dir));
     }
 
-    #[cfg(feature = "file")]
     {
         sub("build_file_layer — file appender construction");
         let tmp_dir = std::env::temp_dir().join("acta-debug-file");
@@ -550,7 +545,6 @@ fn main() {
         drop(std::fs::remove_dir_all(&tmp_dir));
     }
 
-    #[cfg(feature = "file")]
     {
         sub("init_tracing — end-to-end: subscriber + console + file + reload");
         let tmp_dir = std::env::temp_dir().join("acta-debug-full");

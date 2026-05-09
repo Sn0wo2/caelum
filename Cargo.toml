@@ -7,7 +7,7 @@ repository = "https://github.com/Sn0wo2/acta"
 license = "MIT"
 keywords = ["tracing", "logging", "formatting", "colors", "theme"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
-exclude = ["src/debug/", ".github/", ".idea/", "img.png"]
+exclude = [".github/", ".idea/", "img.png"]
 
 [workspace]
 members = ["crates/*"]
@@ -45,10 +45,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json",
 
 [build-dependencies]
 acta-build = { workspace = true }
-
-[[bin]]
-name = "debug"
-path = "src/debug/debug.rs"
 
 [profile.release]
 opt-level = 3

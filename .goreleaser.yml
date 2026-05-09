@@ -19,13 +19,13 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - x86_64-unknown-linux-gnu
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
     env:
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
@@ -33,13 +33,13 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - x86_64-unknown-linux-gnu
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
     env:
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
@@ -47,37 +47,37 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - aarch64-unknown-linux-gnu
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
 
   - id: acta-linux-armv7
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - armv7-unknown-linux-gnueabihf
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
 
   - id: acta-windows-amd64-v2
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - x86_64-pc-windows-gnu
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
     env:
       - RUSTFLAGS=-C target-cpu=x86-64-v2
 
@@ -85,13 +85,13 @@ builds:
     builder: rust
     command: build
     tool: ./scripts/cargo-or-zigbuild.py
-    binary: debug
+    binary: acta-debug
     targets:
       - x86_64-pc-windows-gnu
     flags:
           - --release
           - --all-features
-          - --package=acta
+          - --package=acta-debug
     env:
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 

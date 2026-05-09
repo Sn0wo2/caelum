@@ -29,6 +29,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "acta-debug"
+version = "0.0.0"
+dependencies = [
+ "acta",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

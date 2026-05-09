@@ -29,7 +29,7 @@ publish-dry:
 	cargo publish --dry-run --allow-dirty
 
 run:
-	cargo run --bin debug --all-features
+	cargo run -p acta-debug --all-features
 
 debug: run
 
