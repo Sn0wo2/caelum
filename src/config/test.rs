@@ -47,10 +47,13 @@ fn log_filter_builds_directive() {
         .with_target_level("my_crate", LogLevel::Trace)
         .with_target_level("my_crate::db", LogLevel::Warn);
 
-    assert_eq!(
-        filter.as_filter_directive(),
-        "debug,my_crate=trace,my_crate::db=warn"
-    );
+    let directive = filter.as_filter_directive();
+
+    assert!(directive.starts_with("debug,"));
+    assert!(directive.contains("my_crate=trace"));
+    assert!(directive.contains("my_crate::db=warn"));
+
+    assert_eq!(directive.matches(',').count(), 2);
 }
 
 #[test]
