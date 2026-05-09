@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use smart_default::SmartDefault;
 use std::path::PathBuf;
 
@@ -72,14 +73,14 @@ impl LogLevel {
 #[derive(Clone, Debug)]
 pub struct LogFilter {
     pub level: LogLevel,
-    pub targets: Vec<(String, LogLevel)>,
+    pub targets: HashMap<String, LogLevel>,
 }
 
 impl LogFilter {
     pub fn new(level: LogLevel) -> Self {
         Self {
             level,
-            targets: Vec::new(),
+            targets: HashMap::new(),
         }
     }
 
@@ -89,18 +90,11 @@ impl LogFilter {
     }
 
     pub fn set_target_level(&mut self, target: impl Into<String>, level: LogLevel) {
-        let target = target.into();
-        if let Some((_, existing)) = self.targets.iter_mut().find(|(name, _)| name == &target) {
-            *existing = level;
-        } else {
-            self.targets.push((target, level));
-        }
+        self.targets.insert(target.into(), level);
     }
 
     pub fn remove_target_level(&mut self, target: &str) -> bool {
-        let len = self.targets.len();
-        self.targets.retain(|(name, _)| name != target);
-        self.targets.len() != len
+        self.targets.remove(target).is_some()
     }
 
     pub fn as_filter_directive(&self) -> String {
