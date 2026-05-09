@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use smart_default::SmartDefault;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
