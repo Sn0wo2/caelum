@@ -3,6 +3,32 @@
 version = 4
 
 [[package]]
+name = "acta"
+version = "0.0.0"
+dependencies = [
+ "acta-build",
+ "chrono",
+ "derive_more",
+ "flate2",
+ "nerd-font-symbols",
+ "owo-colors",
+ "serde",
+ "smart-default",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "acta-build"
+version = "0.0.0"
+dependencies = [
+ "walkdir",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -43,32 +69,6 @@ name = "bytes"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
-
-[[package]]
-name = "caelum"
-version = "0.0.0"
-dependencies = [
- "caelum-build",
- "chrono",
- "derive_more",
- "flate2",
- "nerd-font-symbols",
- "owo-colors",
- "serde",
- "smart-default",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "caelum-build"
-version = "0.0.0"
-dependencies = [
- "walkdir",
-]
 
 [[package]]
 name = "cc"

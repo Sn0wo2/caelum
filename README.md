@@ -1,4 +1,4 @@
-# caelum
+# acta
 
 [![Rust](https://img.shields.io/badge/rust-1.85+-orange.svg)](https://www.rust-lang.org)
 [![Edition](https://img.shields.io/badge/edition-2024-blue.svg)](https://doc.rust-lang.org/edition-guide/)
@@ -8,24 +8,24 @@ A customizable logging library for Rust
 ## Installation
 
 ```bash
-cargo add caelum tracing
+cargo add acta tracing
 ```
 
 The default feature set enables Unicode console output and file logging.
 
 ```bash
-cargo add caelum --features serde,compress,nerd,async
+cargo add acta --features serde,compress,nerd,async
 ```
 
 ## Quick start
 
 ```rust
-use caelum::{init_tracing, LoggingConfig, Result};
+use acta::{init_tracing, LoggingConfig, Result};
 
 fn main() -> Result<()> {
     let _guard = init_tracing(&LoggingConfig::default())?;
 
-    tracing::info!("Hello, caelum!");
+    tracing::info!("Hello, acta!");
     tracing::debug!(user = "alice", "User logged in");
 
     Ok(())
@@ -61,7 +61,7 @@ If you disable default features, `init_tracing` is unavailable unless the `file`
 - **File logging**: disabled
 
 ```rust
-use caelum::{
+use acta::{
     init_tracing, ConsoleConfig, ConsoleWriter, LogFormat, LogLevel, LoggingConfig, Result,
 };
 
@@ -98,7 +98,7 @@ fn main() -> Result<()> {
 File logging is available with the `file` feature, which is enabled by default. File logs are written as flattened JSON events.
 
 ```rust
-use caelum::{
+use acta::{
     init_tracing, ConsoleConfig, FileLoggingConfig, LogLevel, LogRotation, LoggingConfig, Result,
 };
 use std::path::PathBuf;
@@ -127,12 +127,12 @@ Supported rotation modes:
 | `LogRotation::Rename` | Renames the existing log file with a timestamp before opening a new one. |
 | `LogRotation::Compress` | Compresses the existing log file to gzip before opening a new one. Requires `compress`. |
 
-## Runtime filtering
+acta uses `tracing-subscriber` `EnvFilter` directive syntax for startup filters and runtime reloads.
 
-caelum uses `tracing-subscriber` `EnvFilter` directive syntax for startup filters and runtime reloads.
+
 
 ```rust
-use caelum::{FilterDirective, LogLevel, LoggingConfig};
+use acta::{FilterDirective, LogLevel, LoggingConfig};
 
 let config = LoggingConfig {
     level: LogLevel::Custom(FilterDirective::new(
@@ -145,7 +145,7 @@ let config = LoggingConfig {
 You can change filters after initialization through `ReloadHandle`.
 
 ```rust
-use caelum::{init_tracing, LogFilter, LogLevel, LoggingConfig, Result};
+use acta::{init_tracing, LogFilter, LogLevel, LoggingConfig, Result};
 
 fn main() -> Result<()> {
     let guard = init_tracing(&LoggingConfig::default())?;
@@ -167,7 +167,7 @@ fn main() -> Result<()> {
 `RUST_LOG` is not read automatically. If you want to use it, pass its value into `LogLevel::Custom`.
 
 ```rust
-use caelum::{FilterDirective, LogLevel, LoggingConfig};
+use acta::{FilterDirective, LogLevel, LoggingConfig};
 
 let directive = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
 let config = LoggingConfig {
@@ -181,7 +181,7 @@ let config = LoggingConfig {
 `AnsiFormatter` powers `LogFormat::Compact` and can be customized through builder methods.
 
 ```rust
-use caelum::{AnsiFormatter, Icons, LevelLabels, Theme};
+use acta::{AnsiFormatter, Icons, LevelLabels, Theme};
 
 let formatter = AnsiFormatter::new()
     .with_theme(Theme::tokyo_night())
@@ -211,7 +211,7 @@ The default path width is generated at build time. Override it per formatter wit
 ## Icons and labels
 
 ```rust
-use caelum::{Icons, LevelLabels};
+use acta::{Icons, LevelLabels};
 
 let unicode_icons = Icons::unicode();
 let short_labels = LevelLabels::short();
@@ -221,7 +221,7 @@ let long_labels = LevelLabels::long();
 With the `nerd` feature enabled:
 
 ```rust
-use caelum::Icons;
+use acta::Icons;
 
 let nerd_icons = Icons::nerd();
 ```
@@ -233,7 +233,7 @@ let nerd_icons = Icons::nerd();
 For style reloads, build the subscriber manually:
 
 ```rust
-use caelum::{
+use acta::{
     build_console_layer_with, build_reload_filter, AnsiFormatter, ConsoleConfig, LogLevel, Result,
     Theme,
 };
@@ -265,7 +265,7 @@ With `custom-async`, `native-async`, or `async`, `ConsoleWriter` gains async std
 `AsyncWriterMode::Custom` uses Tokio, so your application must run inside a Tokio runtime. If you use `#[tokio::main]`, add Tokio as a direct dependency with the required runtime and macro features.
 
 ```rust
-use caelum::{
+use acta::{
     init_tracing, AsyncWriterMode, ConsoleConfig, ConsoleWriter, LoggingConfig, Result,
 };
 

@@ -49,7 +49,7 @@ fn build_console_layer_with_nerd_icons() {
 #[cfg(feature = "file")]
 #[test]
 fn build_file_layer_creates_dirs() {
-    let dir = std::env::temp_dir().join("caelum-test-filelayer");
+    let dir = std::env::temp_dir().join("acta-test-filelayer");
     drop(std::fs::remove_dir_all(&dir));
     let nested = dir.join("a").join("b");
     let log_path = nested.join("app.log");
@@ -86,7 +86,7 @@ fn build_reload_filter_works() {
 #[cfg(feature = "file")]
 #[test]
 fn resolve_log_path_new_file() {
-    let dir = std::env::temp_dir().join("caelum-test-resolve");
+    let dir = std::env::temp_dir().join("acta-test-resolve");
     drop(std::fs::remove_dir_all(&dir));
     drop(std::fs::create_dir_all(&dir));
     let path = dir.join("new.log");

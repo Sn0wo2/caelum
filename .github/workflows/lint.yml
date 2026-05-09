@@ -23,7 +23,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Run cargo fmt
@@ -72,7 +72,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Run cargo clippy
@@ -119,7 +119,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Check documentation
@@ -147,7 +147,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Run cargo check
@@ -166,7 +166,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Cache cargo-deny
@@ -197,7 +197,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Cache cargo-audit
@@ -229,7 +229,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo-nightly
+          shared-key: acta-cargo-nightly
           cache-on-failure: true
 
       - name: Cache cargo-geiger
@@ -278,7 +278,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Cache cargo-semver-checks

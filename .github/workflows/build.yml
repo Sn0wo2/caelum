@@ -28,7 +28,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Set up Zig
@@ -64,6 +64,6 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: caelum-builds
+          name: acta-builds
           path: dist/*
           retention-days: 7

@@ -1,13 +1,13 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 use std::sync::LazyLock;
 
-use caelum::{
+use acta::{
     AnsiFormatter, ConsoleConfig, ConsoleWriter, FileLoggingConfig, FilterDirective, Icons,
     LevelLabels, LogFormat, LogLevel, LogRotation, Theme, build_console_layer,
     build_console_layer_with, build_reload_filter, rotate_log_file,
 };
 #[cfg(feature = "file")]
-use caelum::{LoggingConfig, build_file_layer, init_tracing};
+use acta::{LoggingConfig, build_file_layer, init_tracing};
 use tracing_subscriber::prelude::*;
 
 fn sep(c: &str, n: usize) -> String {
@@ -91,7 +91,7 @@ fn demo_logs_rich(label: &str) {
 fn main() {
     println!();
     println!("\u{2554}\u{2550}{}\u{2557}", sep("\u{2550}", BOX_WIDTH));
-    println!("\u{2551}           caelum  \u{00b7}  debug suite               \u{2551}");
+    println!("\u{2551}           acta  \u{00b7}  debug suite               \u{2551}");
     println!("\u{255a}\u{2550}{}\u{255d}", sep("\u{2550}", BOX_WIDTH));
 
     section("FORMAT MODES");
@@ -492,7 +492,7 @@ fn main() {
 
     sub("File log rotation — Rename (and Compress if enabled)");
     {
-        let tmp_dir = std::env::temp_dir().join("caelum-debug");
+        let tmp_dir = std::env::temp_dir().join("acta-debug");
         drop(std::fs::create_dir_all(&tmp_dir));
         let log_path = tmp_dir.join("test.log");
 
@@ -533,7 +533,7 @@ fn main() {
     #[cfg(feature = "file")]
     {
         sub("build_file_layer — file appender construction");
-        let tmp_dir = std::env::temp_dir().join("caelum-debug-file");
+        let tmp_dir = std::env::temp_dir().join("acta-debug-file");
         drop(std::fs::create_dir_all(&tmp_dir));
 
         let result = build_file_layer(&FileLoggingConfig {
@@ -553,7 +553,7 @@ fn main() {
     #[cfg(feature = "file")]
     {
         sub("init_tracing — end-to-end: subscriber + console + file + reload");
-        let tmp_dir = std::env::temp_dir().join("caelum-debug-full");
+        let tmp_dir = std::env::temp_dir().join("acta-debug-full");
         drop(std::fs::create_dir_all(&tmp_dir));
 
         let config = LoggingConfig {

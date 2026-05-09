@@ -1,5 +1,5 @@
 fn main() {
-    let max = caelum_build::walk_src_max_width("src", "src/");
+    let max = acta_build::walk_src_max_width("src", "src/");
     std::fs::write(
         std::path::Path::new(&std::env::var("OUT_DIR").expect("Cargo should set OUT_DIR"))
             .join("path_width"),

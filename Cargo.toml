@@ -1,9 +1,9 @@
 [package]
-name = "caelum"
+name = "acta"
 version.workspace = true
 edition = "2024"
 description = "A customizable logging library for Rust"
-repository = "https://github.com/Sn0wo2/caelum"
+repository = "https://github.com/Sn0wo2/acta"
 license = "MIT"
 keywords = ["tracing", "logging", "formatting", "colors", "theme"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
@@ -16,7 +16,7 @@ members = ["crates/*"]
 version = "0.0.0"
 
 [workspace.dependencies]
-caelum-build = { path = "crates/caelum-build", version = "0.0.0" }
+acta-build = { path = "crates/acta-build", version = "0.0.0" }
 
 [features]
 default = ["unicode", "file"]
@@ -44,7 +44,7 @@ tokio = { version = "1", default-features = false, features = ["io-std", "io-uti
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }
 
 [build-dependencies]
-caelum-build = { workspace = true }
+acta-build = { workspace = true }
 
 [[bin]]
 name = "debug"

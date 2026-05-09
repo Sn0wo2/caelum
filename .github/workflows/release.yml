@@ -43,7 +43,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: caelum-cargo
+          shared-key: acta-cargo
           cache-on-failure: true
 
       - name: Set up Zig
@@ -78,7 +78,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
           pip3 install -q tomlkit
-          python3 -c "import tomlkit; v='$VERSION'; d=tomlkit.parse(open('Cargo.toml').read()); d['workspace']['package']['version']=v; d['workspace']['dependencies']['caelum-build']['version']=v; open('Cargo.toml','w').write(tomlkit.dumps(d))"
+          python3 -c "import tomlkit; v='$VERSION'; d=tomlkit.parse(open('Cargo.toml').read()); d['workspace']['package']['version']=v; d['workspace']['dependencies']['acta-build']['version']=v; open('Cargo.toml','w').write(tomlkit.dumps(d))"
           cargo update -w
 
       - name: Commit and tag
@@ -118,11 +118,11 @@ jobs:
           git push origin "v$VERSION" --force
           git push origin HEAD:refs/heads/${{ github.event.repository.default_branch }}
 
-      - name: Publish caelum-build to crates.io
+      - name: Publish acta-build to crates.io
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
-        run: cargo publish --manifest-path crates/caelum-build/Cargo.toml --allow-dirty
+        run: cargo publish --manifest-path crates/acta-build/Cargo.toml --allow-dirty
 
-      - name: Publish caelum to crates.io
+      - name: Publish acta to crates.io
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: cargo publish --allow-dirty
       - name: Upload artifacts

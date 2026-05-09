@@ -4,7 +4,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::Layered;
 
 use crate::config::{FilterDirective, LogFilter, LogLevel};
-use crate::error::{CaelumError, Result};
+use crate::error::{ActaError, Result};
 use crate::fmt::{Icons, LevelLabels, StyleConfig, Theme};
 
 pub(crate) type FmtLayer =
@@ -58,8 +58,8 @@ impl ReloadHandle {
     }
 
     fn with_style(&self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
-        let style = self.style.as_ref().ok_or(CaelumError::StyleNotConfigured)?;
-        let mut guard = style.write().map_err(|_| CaelumError::LockPoisoned)?;
+        let style = self.style.as_ref().ok_or(ActaError::StyleNotConfigured)?;
+        let mut guard = style.write().map_err(|_| ActaError::LockPoisoned)?;
         f(&mut guard);
         Ok(())
     }
@@ -86,12 +86,12 @@ impl ReloadHandle {
         Ok(self
             .filter
             .read()
-            .map_err(|_| CaelumError::LockPoisoned)?
+            .map_err(|_| ActaError::LockPoisoned)?
             .clone())
     }
 
     fn store_filter(&self, filter: LogFilter) -> Result<()> {
-        *self.filter.write().map_err(|_| CaelumError::LockPoisoned)? = filter;
+        *self.filter.write().map_err(|_| ActaError::LockPoisoned)? = filter;
         Ok(())
     }
 

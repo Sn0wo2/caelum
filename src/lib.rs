@@ -10,7 +10,7 @@ mod rotation;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 mod writer;
 
-pub use error::{CaelumError, Result};
+pub use error::{ActaError, Result};
 pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
 pub use rotation::rotate_log_file;
 

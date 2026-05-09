@@ -1,0 +1,11 @@
+[package]
+name = "acta-build"
+version.workspace = true
+edition = "2024"
+description = "Build-time helper for acta path width calculation"
+repository = "https://github.com/Sn0wo2/acta"
+publish = true
+license = "MIT"
+
+[dependencies]
+walkdir = "2.5.0"
