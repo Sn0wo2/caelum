@@ -16,7 +16,8 @@ members = ["crates/*"]
 version = "0.0.0"
 
 [workspace.dependencies]
-caelum-build = { path = "crates/caelum-build" }
+caelum-build = { path = "crates/caelum-build", version = "0.0.0" }
+
 [features]
 default = ["unicode", "file"]
 async = ["custom-async", "native-async"]

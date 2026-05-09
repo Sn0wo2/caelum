@@ -72,19 +72,13 @@ jobs:
             echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
           fi
 
-      - name: Cache cargo-edit
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/cargo-set-version
-            ~/.cargo/bin/cargo-upgrade
-          key: ${{ runner.os }}-cargo-tool-cargo-edit-v1
+
 
       - name: Bump version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
-          command -v cargo-set-version &> /dev/null || cargo install cargo-edit --locked
-          cargo set-version --workspace "$VERSION"
+          pip3 install -q tomlkit
+          python3 -c "import tomlkit; v='$VERSION'; d=tomlkit.parse(open('Cargo.toml').read()); d['workspace']['package']['version']=v; d['workspace']['dependencies']['caelum-build']['version']=v; open('Cargo.toml','w').write(tomlkit.dumps(d))"
           cargo update -w
 
       - name: Commit and tag
