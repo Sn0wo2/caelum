@@ -17,7 +17,7 @@ type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscr
 pub struct ReloadHandle {
     raw: RawReloadHandle,
     filter: Arc<RwLock<LogFilter>>,
-    style: Option<Arc<RwLock<StyleConfig>>>,
+    style: Option<StyleConfig>,
 }
 
 impl std::fmt::Debug for ReloadHandle {
@@ -57,22 +57,24 @@ impl ReloadHandle {
         })
     }
 
-    fn with_style(&self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
-        let style = self.style.as_ref().ok_or(ActaError::StyleNotConfigured)?;
-        let mut guard = style.write().map_err(|_| ActaError::LockPoisoned)?;
-        f(&mut guard);
-        Ok(())
+    fn with_style(&mut self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
+        if let Some(ref mut config) = self.style {
+            f(config);
+            Ok(())
+        } else {
+            Err(ActaError::StyleNotConfigured)
+        }
     }
 
-    pub fn set_icons(&self, icons: Icons) -> Result<()> {
+    pub fn set_icons(&mut self, icons: Icons) -> Result<()> {
         self.with_style(|s| s.icons = icons)
     }
 
-    pub fn set_theme(&self, theme: Theme) -> Result<()> {
+    pub fn set_theme(&mut self, theme: Theme) -> Result<()> {
         self.with_style(|s| s.theme = theme)
     }
 
-    pub fn set_labels(&self, labels: LevelLabels) -> Result<()> {
+    pub fn set_labels(&mut self, labels: LevelLabels) -> Result<()> {
         self.with_style(|s| s.labels = labels)
     }
 
@@ -104,7 +106,7 @@ impl ReloadHandle {
 
 pub fn build_reload_filter(
     level: &LogLevel,
-    style: Option<Arc<RwLock<StyleConfig>>>,
+    style: Option<StyleConfig>,
 ) -> (
     tracing_subscriber::reload::Layer<EnvFilter, InnerSubscriber>,
     ReloadHandle,

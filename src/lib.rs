@@ -14,6 +14,11 @@ pub use error::{ActaError, Result};
 pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
 pub use rotation::rotate_log_file;
 
+pub use tracing::{
+    debug, debug_span, error, error_span, info, info_span, trace, trace_span, warn, warn_span,
+    Level as TracingLevel,
+};
+
 #[cfg(feature = "custom-async")]
 pub use writer::{AsyncWriter, AsyncWriterTarget, async_writer, async_writer_for};
 
@@ -35,6 +40,11 @@ pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
 
 use crate::reload::FmtLayer;
 
+#[cfg(feature = "file")]
+use crate::rotation::resolve_log_path;
+#[cfg(feature = "file")]
+use tracing_log::LogTracer;
+
 pub use crate::reload::ReloadHandle;
 
 #[cfg(feature = "file")]
@@ -55,10 +65,10 @@ pub fn build_console_layer(console: &ConsoleConfig) -> FmtLayer {
         formatter = formatter.with_time_format(tf.clone());
     }
 
-    build_console_layer_with(console, formatter)
+    build_console_layer_with(console, &formatter)
 }
 
-pub fn build_console_layer_with(console: &ConsoleConfig, formatter: AnsiFormatter) -> FmtLayer {
+pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatter) -> FmtLayer {
     macro_rules! with_writer {
         ($layer:expr, $console:expr) => {
             match $console.writer {
@@ -116,7 +126,7 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: AnsiFormatte
                 .with_thread_names(false)
                 .with_ansi(console.ansi)
                 .with_span_events(FmtSpan::NONE)
-                .event_format(formatter);
+                .event_format(formatter.clone());
             with_writer!(layer, console)
         }
         LogFormat::Json => {
@@ -215,31 +225,13 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
         (None, None)
     };
 
+    let _ = LogTracer::init();
+
     Ok(TracingGuard {
         worker_guard,
         log_path,
         reload_handle,
     })
-}
-
-#[cfg(feature = "file")]
-fn resolve_log_path(path: &std::path::Path) -> PathBuf {
-    match std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-    {
-        Ok(_) => path.to_path_buf(),
-        Err(_) => {
-            let pid = std::process::id();
-            let stem = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("latest");
-            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("log");
-            path.with_file_name(format!("{stem}-{pid}.{ext}"))
-        }
-    }
 }
 
 #[cfg(test)]

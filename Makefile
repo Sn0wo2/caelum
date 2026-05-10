@@ -31,6 +31,9 @@ publish-dry:
 run:
 	cargo run -p acta-debug --all-features
 
+check-debug:
+	cargo check -p acta-debug --all-features
+
 debug: run
 
 build:

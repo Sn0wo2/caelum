@@ -34,3 +34,23 @@ pub fn rotate_log_file(path: &Path, mode: LogRotation) -> crate::error::Result<(
 fn now_timestamp() -> String {
     chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }
+
+#[cfg(feature = "file")]
+pub(crate) fn resolve_log_path(path: &Path) -> std::path::PathBuf {
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(_) => path.to_path_buf(),
+        Err(_) => {
+            let pid = std::process::id();
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("latest");
+            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("log");
+            path.with_file_name(format!("{stem}-{pid}.{ext}"))
+        }
+    }
+}

@@ -99,7 +99,7 @@ fn main() {
     {
         let console = ConsoleConfig::default();
         let formatter = AnsiFormatter::new().with_icons(Icons::unicode());
-        let layer = build_console_layer_with(&console, formatter);
+        let layer = build_console_layer_with(&console, &formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("unicode"));
     }
@@ -108,7 +108,7 @@ fn main() {
         sub("Compact + Nerd Font icons");
         let console = ConsoleConfig::default();
         let formatter = AnsiFormatter::new().with_icons(Icons::nerd());
-        let layer = build_console_layer_with(&console, formatter);
+        let layer = build_console_layer_with(&console, &formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("nerd"));
     }
@@ -143,7 +143,7 @@ fn main() {
         let formatter = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, formatter);
+        let layer = build_console_layer_with(&console, &formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("compact"));
 
@@ -178,7 +178,7 @@ fn main() {
             let formatter = AnsiFormatter::new()
                 .with_theme(*theme)
                 .with_show_path(false);
-            let layer = build_console_layer_with(&console, formatter);
+            let layer = build_console_layer_with(&console, &formatter);
             let subscriber = tracing_subscriber::registry().with(layer);
             tracing::subscriber::with_default(subscriber, || {
                 tracing::info!(
@@ -197,7 +197,7 @@ fn main() {
             .with_theme(Theme::one_dark())
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, fmt);
+        let layer = build_console_layer_with(&console, &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || {
             tracing::error!(code = 500, "error level: server crash with error code");
@@ -243,13 +243,13 @@ fn main() {
             .with_show_spans(false);
 
         info("short — single-letter level labels");
-        let layer = build_console_layer_with(&ConsoleConfig::default(), short_fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &short_fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("short"));
 
         println!();
         info("long — full-word level labels");
-        let layer = build_console_layer_with(&ConsoleConfig::default(), long_fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &long_fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("long"));
     }
@@ -260,7 +260,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(true)
             .with_show_spans(true);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("full"));
 
@@ -269,7 +269,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("minimal"));
     }
@@ -280,7 +280,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("default-time"));
 
@@ -290,7 +290,7 @@ fn main() {
             .with_time_format("%Y-%m-%d %H:%M:%S%.3f")
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("ms"));
     }
@@ -299,7 +299,7 @@ fn main() {
     {
         info("path width = 28 (compile-time default)");
         let fmt = AnsiFormatter::new().with_show_spans(false);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("wide"));
 
@@ -308,7 +308,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_path_width(20)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&ConsoleConfig::default(), fmt);
+        let layer = build_console_layer_with(&ConsoleConfig::default(), &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("narrow"));
     }
@@ -322,7 +322,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, fmt);
+        let layer = build_console_layer_with(&console, &fmt);
         let subscriber = tracing_subscriber::registry()
             .with(layer)
             .with(filter_layer);
@@ -360,8 +360,8 @@ fn main() {
             .with_show_path(false)
             .with_show_spans(false);
         let style = fmt.style_config();
-        let layer = build_console_layer_with(&console, fmt);
-        let (filter_layer, reload_handle) = build_reload_filter(&LogLevel::Info, Some(style));
+        let layer = build_console_layer_with(&console, &fmt);
+        let (filter_layer, mut reload_handle) = build_reload_filter(&LogLevel::Info, Some(*style));
         let subscriber = tracing_subscriber::registry()
             .with(layer)
             .with(filter_layer);
@@ -391,7 +391,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(true);
-        let layer = build_console_layer_with(&console, fmt);
+        let layer = build_console_layer_with(&console, &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         info("depth 0 → 1 → 2 → 3, each log shows its full span chain");
@@ -415,7 +415,7 @@ fn main() {
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, fmt);
+        let layer = build_console_layer_with(&console, &fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         eprintln!("    (output below written to stderr)");
         tracing::subscriber::with_default(subscriber, || demo_logs("stderr"));
