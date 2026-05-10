@@ -211,7 +211,6 @@ pub enum AsyncWriterMode {
     Native,
 }
 
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, SmartDefault)]
 pub struct ConsoleConfig {

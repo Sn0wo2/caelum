@@ -15,8 +15,8 @@ pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
 pub use rotation::rotate_log_file;
 
 pub use tracing::{
-    debug, debug_span, error, error_span, info, info_span, trace, trace_span, warn, warn_span,
-    Level as TracingLevel,
+    Level as TracingLevel, debug, debug_span, error, error_span, info, info_span, trace,
+    trace_span, warn, warn_span,
 };
 
 #[cfg(feature = "custom-async")]
@@ -37,7 +37,6 @@ pub use config::{
 use std::path::PathBuf;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
-
 
 #[cfg(feature = "file")]
 pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
@@ -80,21 +79,25 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
                 ConsoleWriter::Stdout => layer.with_writer(std::io::stdout).boxed(),
                 ConsoleWriter::Stderr => layer.with_writer(std::io::stderr).boxed(),
                 #[cfg(feature = "custom-async")]
-                ConsoleWriter::AsyncStdout(AsyncWriterMode::Custom) => {
-                    layer.with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout)).boxed()
-                }
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Custom) => layer
+                    .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout))
+                    .boxed(),
                 #[cfg(feature = "native-async")]
-                ConsoleWriter::AsyncStdout(AsyncWriterMode::Native) => {
-                    layer.with_writer(writer::native_async_writer(writer::AsyncWriterTarget::Stdout)).boxed()
-                }
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Native) => layer
+                    .with_writer(writer::native_async_writer(
+                        writer::AsyncWriterTarget::Stdout,
+                    ))
+                    .boxed(),
                 #[cfg(feature = "custom-async")]
-                ConsoleWriter::AsyncStderr(AsyncWriterMode::Custom) => {
-                    layer.with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr)).boxed()
-                }
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Custom) => layer
+                    .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr))
+                    .boxed(),
                 #[cfg(feature = "native-async")]
-                ConsoleWriter::AsyncStderr(AsyncWriterMode::Native) => {
-                    layer.with_writer(writer::native_async_writer(writer::AsyncWriterTarget::Stderr)).boxed()
-                }
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Native) => layer
+                    .with_writer(writer::native_async_writer(
+                        writer::AsyncWriterTarget::Stderr,
+                    ))
+                    .boxed(),
             }
         }};
     }
