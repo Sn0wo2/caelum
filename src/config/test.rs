@@ -72,3 +72,59 @@ fn log_filter_updates_targets() {
 fn log_rotation_default_is_none() {
     assert!(matches!(LogRotation::default(), LogRotation::None));
 }
+
+#[test]
+fn filter_directive_new_str() {
+    let directive = FilterDirective::new("info");
+    assert_eq!(directive.as_str(), "info");
+}
+
+#[test]
+fn filter_directive_new_string() {
+    let directive = FilterDirective::new(String::from("debug"));
+    assert_eq!(directive.as_str(), "debug");
+}
+
+#[test]
+fn filter_directive_display() {
+    let directive = FilterDirective::new("test");
+    assert_eq!(format!("{}", directive), "test");
+}
+
+#[test]
+fn filter_directive_as_ref() {
+    let directive = FilterDirective::new("trace");
+    let _: &str = directive.as_ref();
+    assert_eq!(directive.as_ref(), "trace");
+}
+
+#[test]
+fn filter_directive_from_string() {
+    let directive: FilterDirective = String::from("warn").into();
+    assert_eq!(directive.as_str(), "warn");
+}
+
+#[test]
+fn log_filter_remove_target_level_exists() {
+    let mut filter = LogFilter::new(LogLevel::Info);
+    filter.set_target_level("my_crate", LogLevel::Debug);
+    assert!(filter.remove_target_level("my_crate"));
+}
+
+#[test]
+fn log_filter_remove_target_level_not_exists() {
+    let mut filter = LogFilter::new(LogLevel::Info);
+    assert!(!filter.remove_target_level("nonexistent"));
+}
+
+#[test]
+fn log_filter_from_log_level() {
+    let filter: LogFilter = LogLevel::Warn.into();
+    assert!(filter.targets.is_empty());
+}
+
+#[test]
+fn log_filter_from_log_level_debug() {
+    let filter: LogFilter = LogLevel::Debug.into();
+    assert_eq!(filter.as_filter_directive(), "debug");
+}

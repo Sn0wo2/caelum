@@ -43,7 +43,7 @@ fn build_console_layer_custom_time() {
 fn build_console_layer_with_nerd_icons() {
     let cfg = ConsoleConfig::default();
     let formatter = AnsiFormatter::new().with_icons(Icons::nerd());
-    let _layer = build_console_layer_with(&cfg, formatter);
+    let _layer = build_console_layer_with(&cfg, &formatter);
 }
 
 #[cfg(feature = "file")]
@@ -95,4 +95,98 @@ fn resolve_log_path_new_file() {
     assert_eq!(resolved, path);
 
     drop(std::fs::remove_dir_all(&dir));
+}
+
+#[cfg(feature = "file")]
+#[test]
+fn resolve_log_path_fallback_when_parent_is_file() {
+    let dir = std::env::temp_dir().join("acta-test-resolve-fallback");
+    drop(std::fs::remove_dir_all(&dir));
+    drop(std::fs::create_dir_all(&dir));
+
+    let bad_file = dir.join("existing_file");
+    std::fs::write(&bad_file, b"contents").unwrap();
+
+    let nested = bad_file.join("should_not_exist.log");
+    let resolved = resolve_log_path(&nested);
+
+    assert!(!resolved.exists());
+    let pid = std::process::id();
+    assert!(
+        resolved
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains(&pid.to_string())
+    );
+
+    drop(std::fs::remove_dir_all(&dir));
+}
+
+#[test]
+fn reload_handle_set_theme_with_style_config() {
+    let style = StyleConfig::default();
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
+    assert!(handle.set_theme(Theme::dracula()).is_ok());
+}
+
+#[test]
+fn reload_handle_set_icons_with_style_config() {
+    let style = StyleConfig::default();
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
+    assert!(handle.set_icons(Icons::unicode()).is_ok());
+}
+
+#[test]
+fn reload_handle_set_labels_with_style_config() {
+    let style = StyleConfig::default();
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
+    assert!(handle.set_labels(LevelLabels::short()).is_ok());
+}
+
+#[test]
+fn reload_handle_set_theme_without_style_config() {
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, None);
+    assert!(handle.set_theme(Theme::monokai()).is_err());
+    assert!(handle.set_icons(Icons::unicode()).is_err());
+    assert!(handle.set_labels(LevelLabels::long()).is_err());
+}
+
+#[test]
+fn reload_handle_set_target_level_accepts_string() {
+    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
+    let target = String::from("my_crate");
+    assert!(handle.set_target_level(target, LogLevel::Trace).is_ok());
+}
+
+#[test]
+fn reload_handle_remove_nonexistent_target_level() {
+    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
+    assert!(handle.remove_target_level("nonexistent_crate").is_ok());
+}
+#[test]
+fn acta_error_display_lock_poisoned() {
+    let msg = format!("{}", ActaError::LockPoisoned);
+    assert!(msg.contains("log filter state lock poisoned"));
+}
+
+#[test]
+fn acta_error_display_style_not_configured() {
+    let msg = format!("{}", ActaError::StyleNotConfigured);
+    assert!(msg.contains("formatter style reload not configured"));
+}
+
+#[test]
+fn acta_error_display_io() {
+    let inner = std::io::Error::new(std::io::ErrorKind::NotFound, "test error");
+    let msg = format!("{}", ActaError::Io(inner));
+    assert!(msg.contains("I/O error"));
+}
+
+#[test]
+fn acta_error_from_io_error() {
+    let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+    let error: ActaError = io_err.into();
+    assert!(matches!(error, ActaError::Io(_)));
 }
