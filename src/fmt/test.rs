@@ -172,7 +172,7 @@ fn rotate_compress() {
 fn ansi_formatter_style_config_returns_reference() {
     let fmt = AnsiFormatter::new();
     let config = fmt.style_config();
-     assert_eq!(config.labels.error, "E");
+    assert_eq!(config.labels.error, "E");
 }
 
 #[test]

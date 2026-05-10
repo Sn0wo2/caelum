@@ -142,21 +142,15 @@ impl AnsiFormatter {
             Cow::Borrowed(file)
         };
         Self::smart_truncate(
-            normalized
-                .find("src/")
-                .map_or(&*normalized, |i| {
-                    normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
-                }),
+            normalized.find("src/").map_or(&*normalized, |i| {
+                normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
+            }),
             line,
             max_width,
         )
     }
 
-    fn smart_truncate(
-        path: &str,
-        line: u32,
-        max_width: usize,
-    ) -> ArrayString<PATH_BUF_SIZE> {
+    fn smart_truncate(path: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
         let mut full = ArrayString::<PATH_BUF_SIZE>::new();
         let _ = write!(full, "{path}:{line}");
 
@@ -173,9 +167,9 @@ impl AnsiFormatter {
 
             if file_part.len().saturating_add(2) <= max_width {
                 let dir_part = path.get(..last_slash).unwrap_or("");
-                let dir_start = dir_part.len().saturating_sub(
-                    max_width.saturating_sub(file_part.len()).saturating_sub(1),
-                );
+                let dir_start = dir_part
+                    .len()
+                    .saturating_sub(max_width.saturating_sub(file_part.len()).saturating_sub(1));
                 let dir_tail = dir_part.get(dir_start..).unwrap_or("");
                 let clean_dir = dir_tail.find('/').map_or(dir_tail, |i| {
                     dir_tail.get(i.saturating_add(1)..).unwrap_or(dir_tail)
@@ -250,7 +244,9 @@ impl AnsiFormatter {
         S: Subscriber + for<'a> LookupSpan<'a>,
         N: for<'a> tracing_subscriber::fmt::FormatFields<'a> + 'static,
     {
-        let scope = ctx.event_scope().or_else(|| ctx.lookup_current().map(|s| s.scope()));
+        let scope = ctx
+            .event_scope()
+            .or_else(|| ctx.lookup_current().map(|s| s.scope()));
         if let Some(scope) = scope {
             write!(writer, " {} ", theme.accent.style(icons.span_delimiter))?;
             for (i, span) in scope.from_root().enumerate() {
