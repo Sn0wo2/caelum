@@ -9,3 +9,4 @@ license = "MIT"
 
 [dependencies]
 walkdir = "2.5.0"
+rayon = "1"
