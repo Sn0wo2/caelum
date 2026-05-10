@@ -36,16 +36,16 @@ Keep the returned guard alive for as long as logging is needed. Dropping it stop
 
 ## Features
 
-| Feature | Enabled by default | Description |
-| --- | --- | --- |
-| `unicode` | Yes | Uses the Unicode icon set unless `nerd` selects Nerd Font icons. |
-| `file` | Yes | Enables `init_tracing`, `TracingGuard`, `build_file_layer`, and file logging through `tracing-appender`. |
-| `compress` | No | Enables `LogRotation::Compress` for gzip-compressing old log files. |
-| `serde` | No | Adds `Serialize` / `Deserialize` support for config types. |
-| `nerd` | No | Enables Nerd Font icons through `Icons::nerd()` and uses them by default. |
-| `custom-async` | No | Enables Tokio-backed async console writers and exports `AsyncWriter` helpers. |
-| `native-async` | No | Enables non-blocking console writers backed by `tracing-appender`. |
-| `async` | No | Enables both `custom-async` and `native-async`. |
+| Feature        | Enabled by default | Description                                                                                              |
+|----------------|--------------------|----------------------------------------------------------------------------------------------------------|
+| `unicode`      | Yes                | Uses the Unicode icon set unless `nerd` selects Nerd Font icons.                                         |
+| `file`         | Yes                | Enables `init_tracing`, `TracingGuard`, `build_file_layer`, and file logging through `tracing-appender`. |
+| `compress`     | No                 | Enables `LogRotation::Compress` for gzip-compressing old log files.                                      |
+| `serde`        | No                 | Adds `Serialize` / `Deserialize` support for config types.                                               |
+| `nerd`         | No                 | Enables Nerd Font icons through `Icons::nerd()` and uses them by default.                                |
+| `custom-async` | No                 | Enables Tokio-backed async console writers and exports `AsyncWriter` helpers.                            |
+| `native-async` | No                 | Enables non-blocking console writers backed by `tracing-appender`.                                       |
+| `async`        | No                 | Enables both `custom-async` and `native-async`.                                                          |
 
 If you disable default features, `init_tracing` is unavailable unless the `file` feature is enabled.
 
@@ -87,15 +87,16 @@ fn main() -> Result<()> {
 
 ## Console formats
 
-| Format | Description |
-| --- | --- |
-| `LogFormat::Compact` | Default themed formatter with optional path and span display. |
-| `LogFormat::Pretty` | `tracing-subscriber` pretty formatter with file and line metadata. |
-| `LogFormat::Json` | Flattened JSON events without ANSI colors. |
+| Format               | Description                                                        |
+|----------------------|--------------------------------------------------------------------|
+| `LogFormat::Compact` | Default themed formatter with optional path and span display.      |
+| `LogFormat::Pretty`  | `tracing-subscriber` pretty formatter with file and line metadata. |
+| `LogFormat::Json`    | Flattened JSON events without ANSI colors.                         |
 
 ## File logging
 
-File logging is available with the `file` feature, which is enabled by default. File logs are written as flattened JSON events.
+File logging is available with the `file` feature, which is enabled by default. File logs are written as flattened JSON
+events.
 
 ```rust
 use acta::{
@@ -121,24 +122,22 @@ fn main() -> Result<()> {
 
 Supported rotation modes:
 
-| Mode | Description |
-| --- | --- |
-| `LogRotation::None` | Keeps the existing log file. |
-| `LogRotation::Rename` | Renames the existing log file with a timestamp before opening a new one. |
+| Mode                    | Description                                                                             |
+|-------------------------|-----------------------------------------------------------------------------------------|
+| `LogRotation::None`     | Keeps the existing log file.                                                            |
+| `LogRotation::Rename`   | Renames the existing log file with a timestamp before opening a new one.                |
 | `LogRotation::Compress` | Compresses the existing log file to gzip before opening a new one. Requires `compress`. |
 
 acta uses `tracing-subscriber` `EnvFilter` directive syntax for startup filters and runtime reloads.
-
-
 
 ```rust
 use acta::{FilterDirective, LogLevel, LoggingConfig};
 
 let config = LoggingConfig {
-    level: LogLevel::Custom(FilterDirective::new(
-        "info,my_crate=debug,my_crate::db=trace",
-    )),
-    ..Default::default()
+level: LogLevel::Custom(FilterDirective::new(
+"info,my_crate=debug,my_crate::db=trace",
+)),
+..Default::default ()
 };
 ```
 
@@ -169,10 +168,10 @@ fn main() -> Result<()> {
 ```rust
 use acta::{FilterDirective, LogLevel, LoggingConfig};
 
-let directive = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
+let directive = std::env::var("RUST_LOG").unwrap_or_else( | _ | "info".to_string());
 let config = LoggingConfig {
-    level: LogLevel::Custom(FilterDirective::new(directive)),
-    ..Default::default()
+level: LogLevel::Custom(FilterDirective::new(directive)),
+..Default::default ()
 };
 ```
 
@@ -184,29 +183,29 @@ let config = LoggingConfig {
 use acta::{AnsiFormatter, Icons, LevelLabels, Theme};
 
 let formatter = AnsiFormatter::new()
-    .with_theme(Theme::tokyo_night())
-    .with_icons(Icons::unicode())
-    .with_labels(LevelLabels::long())
-    .with_time_format("%H:%M:%S")
-    .with_path_width(40)
-    .with_show_path(true)
-    .with_show_spans(true);
+.with_theme(Theme::tokyo_night())
+.with_icons(Icons::unicode())
+.with_labels(LevelLabels::long())
+.with_time_format("%H:%M:%S")
+.with_path_width(40)
+.with_show_path(true)
+.with_show_spans(true);
 ```
 
 The default path width is generated at build time. Override it per formatter with `AnsiFormatter::with_path_width`.
 
 ## Themes
 
-| Theme | Description |
-| --- | --- |
-| `Theme::trans_flag()` | Default |
-| `Theme::monokai()` | Monokai |
-| `Theme::dracula()` | Dracula |
-| `Theme::nord()` | Nord |
+| Theme                       | Description      |
+|-----------------------------|------------------|
+| `Theme::trans_flag()`       | Default          |
+| `Theme::monokai()`          | Monokai          |
+| `Theme::dracula()`          | Dracula          |
+| `Theme::nord()`             | Nord             |
 | `Theme::catppuccin_mocha()` | Catppuccin Mocha |
-| `Theme::gruvbox()` | Gruvbox |
-| `Theme::one_dark()` | One Dark |
-| `Theme::tokyo_night()` | Tokyo Night |
+| `Theme::gruvbox()`          | Gruvbox          |
+| `Theme::one_dark()`         | One Dark         |
+| `Theme::tokyo_night()`      | Tokyo Night      |
 
 ## Icons and labels
 
@@ -228,7 +227,8 @@ let nerd_icons = Icons::nerd();
 
 ## Runtime style reload
 
-`ReloadHandle` can reload themes, icons, and labels only when it is created with a shared `StyleConfig`. `init_tracing` configures runtime filter reloads, but not runtime style reloads.
+`ReloadHandle` can reload themes, icons, and labels only when it is created with a shared `StyleConfig`. `init_tracing`
+configures runtime filter reloads, but not runtime style reloads.
 
 For style reloads, build the subscriber manually:
 
@@ -262,7 +262,8 @@ This low-level setup requires adding `tracing-subscriber` as a direct dependency
 
 With `custom-async`, `native-async`, or `async`, `ConsoleWriter` gains async stdout and stderr variants.
 
-`AsyncWriterMode::Custom` uses Tokio, so your application must run inside a Tokio runtime. If you use `#[tokio::main]`, add Tokio as a direct dependency with the required runtime and macro features.
+`AsyncWriterMode::Custom` uses Tokio, so your application must run inside a Tokio runtime. If you use `#[tokio::main]`,
+add Tokio as a direct dependency with the required runtime and macro features.
 
 ```rust
 use acta::{
