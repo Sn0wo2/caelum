@@ -182,7 +182,7 @@ fn ansi_formatter_with_style_config_replaces_all() {
         icons: Icons::unicode(),
         theme: Theme::monokai(),
     };
-    let fmt = AnsiFormatter::new().with_style_config(config.clone());
+    let fmt = AnsiFormatter::new().with_style_config(config);
     assert_eq!(fmt.style_config().labels, LevelLabels::short());
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
     assert!((248..=255).contains(&fmt.style_config().theme.error.rgb.0));
@@ -216,30 +216,30 @@ fn ansi_formatter_with_theme_changes_theme() {
 #[test]
 fn event_visitor_records_message_field() {
     let mut visitor = EventVisitor::default();
-    visitor.record_field("message", "hello".to_string());
-    assert_eq!(visitor.message, Some("hello".to_string()));
+    visitor.record_field("message", "hello".to_owned());
+    assert_eq!(visitor.message, Some("hello".to_owned()));
     assert!(visitor.fields.is_empty());
 }
 
 #[test]
 fn event_visitor_records_msg_alias() {
     let mut visitor = EventVisitor::default();
-    visitor.record_field("msg", "world".to_string());
-    assert_eq!(visitor.message, Some("world".to_string()));
+    visitor.record_field("msg", "world".to_owned());
+    assert_eq!(visitor.message, Some("world".to_owned()));
     assert!(visitor.fields.is_empty());
 }
 
 #[test]
 fn event_visitor_records_other_fields_as_pairs() {
     let mut visitor = EventVisitor::default();
-    visitor.record_field("user", "alice".to_string());
-    visitor.record_field("count", "42".to_string());
+    visitor.record_field("user", "alice".to_owned());
+    visitor.record_field("count", "42".to_owned());
     assert!(visitor.message.is_none());
     assert_eq!(
         visitor.fields,
         SmallVec::<[(String, String); 4]>::from_vec(vec![
-            ("user".to_string(), "alice".to_string()),
-            ("count".to_string(), "42".to_string())
+            ("user".to_owned(), "alice".to_owned()),
+            ("count".to_owned(), "42".to_owned())
         ])
     );
 }
