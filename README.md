@@ -8,7 +8,7 @@ A customizable logging library for Rust
 ## Installation
 
 ```bash
-cargo add acta tracing
+cargo add acta
 ```
 
 The default feature set enables Unicode console output and file logging.

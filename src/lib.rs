@@ -20,7 +20,10 @@ pub use tracing::{
 };
 
 #[cfg(feature = "custom-async")]
-pub use writer::{AsyncWriter, AsyncWriterTarget, async_writer, async_writer_for};
+pub use writer::{AsyncWriter, async_writer, async_writer_for};
+
+#[cfg(any(feature = "custom-async", feature = "native-async"))]
+pub use writer::AsyncWriterTarget;
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use config::AsyncWriterMode;
@@ -34,6 +37,7 @@ pub use config::{
 use std::path::PathBuf;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
+
 
 #[cfg(feature = "file")]
 pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
@@ -70,43 +74,34 @@ pub fn build_console_layer(console: &ConsoleConfig) -> FmtLayer {
 
 pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatter) -> FmtLayer {
     macro_rules! with_writer {
-        ($layer:expr, $console:expr) => {
-            match $console.writer {
-                ConsoleWriter::Stdout => $layer.with_writer(std::io::stdout).boxed(),
-                ConsoleWriter::Stderr => $layer.with_writer(std::io::stderr).boxed(),
-                #[cfg(any(feature = "custom-async", feature = "native-async"))]
-                ConsoleWriter::AsyncStdout(mode) => match mode {
-                    #[cfg(feature = "custom-async")]
-                    config::AsyncWriterMode::Custom => $layer
-                        .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout))
-                        .boxed(),
-                    #[cfg(feature = "native-async")]
-                    config::AsyncWriterMode::Native => $layer
-                        .with_writer(writer::native_async_writer(
-                            writer::AsyncWriterTarget::Stdout,
-                        ))
-                        .boxed(),
-                },
-                #[cfg(any(feature = "custom-async", feature = "native-async"))]
-                ConsoleWriter::AsyncStderr(mode) => match mode {
-                    #[cfg(feature = "custom-async")]
-                    config::AsyncWriterMode::Custom => $layer
-                        .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr))
-                        .boxed(),
-                    #[cfg(feature = "native-async")]
-                    config::AsyncWriterMode::Native => $layer
-                        .with_writer(writer::native_async_writer(
-                            writer::AsyncWriterTarget::Stderr,
-                        ))
-                        .boxed(),
-                },
+        ($layer:expr) => {{
+            let layer = $layer;
+            match console.writer {
+                ConsoleWriter::Stdout => layer.with_writer(std::io::stdout).boxed(),
+                ConsoleWriter::Stderr => layer.with_writer(std::io::stderr).boxed(),
+                #[cfg(feature = "custom-async")]
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Custom) => {
+                    layer.with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout)).boxed()
+                }
+                #[cfg(feature = "native-async")]
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Native) => {
+                    layer.with_writer(writer::native_async_writer(writer::AsyncWriterTarget::Stdout)).boxed()
+                }
+                #[cfg(feature = "custom-async")]
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Custom) => {
+                    layer.with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr)).boxed()
+                }
+                #[cfg(feature = "native-async")]
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Native) => {
+                    layer.with_writer(writer::native_async_writer(writer::AsyncWriterTarget::Stderr)).boxed()
+                }
             }
-        };
+        }};
     }
 
     match &console.format {
-        LogFormat::Pretty => {
-            let layer = tracing_subscriber::fmt::Layer::default()
+        LogFormat::Pretty => with_writer!(
+            tracing_subscriber::fmt::Layer::default()
                 .pretty()
                 .with_target(true)
                 .with_file(true)
@@ -114,11 +109,10 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
                 .with_thread_ids(false)
                 .with_thread_names(false)
                 .with_ansi(console.ansi)
-                .with_span_events(FmtSpan::NONE);
-            with_writer!(layer, console)
-        }
-        LogFormat::Compact => {
-            let layer = tracing_subscriber::fmt::Layer::default()
+                .with_span_events(FmtSpan::NONE)
+        ),
+        LogFormat::Compact => with_writer!(
+            tracing_subscriber::fmt::Layer::default()
                 .with_target(false)
                 .with_file(false)
                 .with_line_number(false)
@@ -126,11 +120,10 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
                 .with_thread_names(false)
                 .with_ansi(console.ansi)
                 .with_span_events(FmtSpan::NONE)
-                .event_format(formatter.clone());
-            with_writer!(layer, console)
-        }
-        LogFormat::Json => {
-            let layer = tracing_subscriber::fmt::Layer::default()
+                .event_format(formatter.clone())
+        ),
+        LogFormat::Json => with_writer!(
+            tracing_subscriber::fmt::Layer::default()
                 .json()
                 .with_target(false)
                 .with_file(false)
@@ -138,9 +131,8 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
                 .with_current_span(false)
                 .with_span_list(false)
                 .flatten_event(true)
-                .with_ansi(false);
-            with_writer!(layer, console)
-        }
+                .with_ansi(false)
+        ),
     }
 }
 
@@ -169,7 +161,6 @@ pub fn build_file_layer(file_config: &FileLoggingConfig) -> Result<FileLayerPart
     }
 
     rotate_log_file(path, file_config.rotation)?;
-
     let path = resolve_log_path(path);
 
     let file_appender = tracing_appender::rolling::never(

@@ -1,7 +1,5 @@
-#[cfg(any(feature = "custom-async", feature = "native-async"))]
-use std::io::{self, Write};
-
 #[cfg(feature = "custom-async")]
+use std::io::Write;
 use std::sync::Arc;
 #[cfg(feature = "custom-async")]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -36,18 +34,16 @@ impl AsyncWriter {
 
 #[cfg(feature = "custom-async")]
 impl Write for AsyncWriter {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.count.fetch_add(1, Ordering::Relaxed);
-
         self.sender.send(buf.to_vec()).map_err(|_| {
             self.count.fetch_sub(1, Ordering::Relaxed);
-            io::Error::new(io::ErrorKind::BrokenPipe, "async writer closed")
+            std::io::Error::new(std::io::ErrorKind::BrokenPipe, "async writer closed")
         })?;
-
         Ok(buf.len())
     }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
 }
@@ -80,8 +76,7 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
 
         while let Some(data) = receiver.recv().await {
             if let Err(e) = writer.write_all(&data).await {
-                // stderr failing is the final fallback — nothing left to do
-                let _io_err = writeln!(io::stderr(), "async writer error: {e}");
+                writeln!(std::io::stderr(), "async writer error: {e}").expect("failed to write async");
             }
             count_clone.fetch_sub(1, Ordering::Relaxed);
         }
@@ -89,6 +84,7 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
 
     AsyncWriter { sender, count }
 }
+
 #[cfg(feature = "native-async")]
 pub(crate) struct NativeAsyncWriter {
     writer: tracing_appender::non_blocking::NonBlocking,
@@ -114,8 +110,8 @@ impl MakeWriter<'_> for NativeAsyncWriter {
 #[cfg(feature = "native-async")]
 pub(crate) fn native_async_writer(target: AsyncWriterTarget) -> NativeAsyncWriter {
     let (writer, guard) = match target {
-        AsyncWriterTarget::Stdout => tracing_appender::non_blocking(io::stdout()),
-        AsyncWriterTarget::Stderr => tracing_appender::non_blocking(io::stderr()),
+        AsyncWriterTarget::Stdout => tracing_appender::non_blocking(std::io::stdout()),
+        AsyncWriterTarget::Stderr => tracing_appender::non_blocking(std::io::stderr()),
     };
 
     NativeAsyncWriter {

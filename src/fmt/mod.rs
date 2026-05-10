@@ -9,8 +9,8 @@ use smallvec::SmallVec;
 use std::borrow::Cow;
 use std::fmt;
 use std::fmt::{Debug, Write};
-use std::sync::Mutex;
 
+use crate::config::ConsoleConfig;
 use tracing::field::Field;
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::fmt::FormattedFields;
@@ -29,8 +29,6 @@ pub struct AnsiFormatter {
     pub show_path: bool,
     pub show_spans: bool,
     style: StyleConfig,
-    #[doc(hidden)]
-    cached_time: Mutex<(i64, String)>,
 }
 
 impl Clone for AnsiFormatter {
@@ -41,7 +39,6 @@ impl Clone for AnsiFormatter {
             show_path: self.show_path,
             show_spans: self.show_spans,
             style: self.style,
-            cached_time: Mutex::new(self.cached_time.lock().unwrap().clone()),
         }
     }
 }
@@ -62,13 +59,28 @@ impl AnsiFormatter {
             show_path: true,
             show_spans: true,
             style: config,
-            cached_time: Mutex::new((0, String::new())),
         }
+    }
+
+    #[must_use]
+    pub fn from_config(config: &ConsoleConfig) -> Self {
+        let mut fmt = Self::new()
+            .with_show_path(config.show_path)
+            .with_show_spans(config.show_spans);
+        if let Some(tf) = &config.time_format {
+            fmt = fmt.with_time_format(tf.clone());
+        }
+        fmt
     }
 
     #[must_use]
     pub fn style_config(&self) -> &StyleConfig {
         &self.style
+    }
+
+    #[must_use]
+    pub fn style_config_mut(&mut self) -> &mut StyleConfig {
+        &mut self.style
     }
 
     #[must_use]
@@ -98,7 +110,6 @@ impl AnsiFormatter {
     #[must_use]
     pub fn with_time_format(mut self, fmt: impl Into<String>) -> Self {
         self.time_format = fmt.into();
-       *self.cached_time.lock().unwrap() = (0, String::new());
         self
     }
 
@@ -120,14 +131,8 @@ impl AnsiFormatter {
         self
     }
 
-   fn get_time(&self) -> String {
-        let now = Local::now();
-        let ts = now.timestamp_millis();
-        let mut cache = self.cached_time.lock().unwrap();
-        if ts != cache.0 {
-            *cache = (ts, now.format(&self.time_format).to_string());
-        }
-        cache.1.clone()
+    fn get_time(&self) -> String {
+        Local::now().format(&self.time_format).to_string()
     }
 
     fn format_path(file: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
@@ -157,11 +162,7 @@ impl AnsiFormatter {
 
         if full.len() <= max_width {
             let mut result = ArrayString::<PATH_BUF_SIZE>::new();
-            let pad = max_width - full.len();
-            for _ in 0..pad {
-                result.push(' ');
-            }
-            result.push_str(full.as_str());
+            write!(result, "{full:>width$}", width = max_width).ok();
             return result;
         }
 
@@ -188,7 +189,7 @@ impl AnsiFormatter {
 
         let start = full.len().saturating_sub(max_width.saturating_sub(1));
         let mut result = ArrayString::<PATH_BUF_SIZE>::new();
-        result.push('\u{2026}'); // … ellipsis
+        result.push('\u{2026}');
         result.push_str(full.get(start..).unwrap_or(""));
         result
     }
@@ -249,7 +250,8 @@ impl AnsiFormatter {
         S: Subscriber + for<'a> LookupSpan<'a>,
         N: for<'a> tracing_subscriber::fmt::FormatFields<'a> + 'static,
     {
-        if let Some(scope) = ctx.event_scope() {
+        let scope = ctx.event_scope().or_else(|| ctx.lookup_current().map(|s| s.scope()));
+        if let Some(scope) = scope {
             write!(writer, " {} ", theme.accent.style(icons.span_delimiter))?;
             for (i, span) in scope.from_root().enumerate() {
                 if i > 0 {
@@ -262,14 +264,6 @@ impl AnsiFormatter {
                     theme,
                 )?;
             }
-        } else if let Some(span) = ctx.lookup_current() {
-            write!(writer, " {} ", theme.accent.style(icons.span_delimiter))?;
-            Self::write_span(
-                writer.by_ref(),
-                span.name(),
-                span.extensions().get::<FormattedFields<N>>(),
-                theme,
-            )?;
         }
         Ok(())
     }
@@ -315,47 +309,34 @@ where
         let is_nerd = icons.is_nerd();
 
         let level = event.metadata().level();
-
         let time = self.get_time();
 
-        let lc = match *level {
-            Level::ERROR => &theme.error,
-            Level::WARN => &theme.warn,
-            Level::INFO => &theme.info,
-            Level::DEBUG => &theme.debug,
-            Level::TRACE => &theme.trace,
-        };
-        let level_label = match *level {
-            Level::ERROR => labels.error,
-            Level::WARN => labels.warn,
-            Level::INFO => labels.info,
-            Level::DEBUG => labels.debug,
-            Level::TRACE => labels.trace,
+        let (lc, level_label) = match *level {
+            Level::ERROR => (&theme.error, labels.error),
+            Level::WARN => (&theme.warn, labels.warn),
+            Level::INFO => (&theme.info, labels.info),
+            Level::DEBUG => (&theme.debug, labels.debug),
+            Level::TRACE => (&theme.trace, labels.trace),
         };
 
-        let mut fg_style = Style::new().truecolor(lc.rgb.0, lc.rgb.1, lc.rgb.2);
-        if !is_nerd {
-            fg_style = fg_style.on_truecolor(lc.rgb.0, lc.rgb.1, lc.rgb.2);
-        }
-        let bg_style = lc.bg; // pre-computed — no construction on hot path
+        let fg_style = if is_nerd {
+            Style::new().truecolor(lc.rgb.0, lc.rgb.1, lc.rgb.2)
+        } else {
+            Style::new()
+                .truecolor(lc.rgb.0, lc.rgb.1, lc.rgb.2)
+                .on_truecolor(lc.rgb.0, lc.rgb.1, lc.rgb.2)
+        };
+        let bg_style = lc.bg;
 
-         write!(writer, "{}", theme.accent.style(icons.time_bracket_open))?;
+        write!(writer, "{}", theme.accent.style(icons.time_bracket_open))?;
         write!(writer, "{}", theme.text.style(time))?;
-        write!(
-            writer,
-            " {} ",
-            theme.accent_dimmed.style(icons.separator)
-        )?;
+        write!(writer, " {} ", theme.accent_dimmed.style(icons.separator))?;
 
         write!(writer, "{}", fg_style.style(icons.bracket_open))?;
         write!(writer, "{}", bg_style.style(level_label))?;
         write!(writer, "{} ", fg_style.style(icons.bracket_close))?;
 
-        write!(
-            writer,
-            "{} ",
-            theme.accent.style(icons.time_bracket_close)
-        )?;
+        write!(writer, "{} ", theme.accent.style(icons.time_bracket_close))?;
 
         if self.show_path {
             self.format_path_section(&mut writer, event, theme, icons)?;
@@ -370,6 +351,7 @@ where
         writeln!(writer)
     }
 }
+
 #[derive(Default)]
 struct EventVisitor {
     message: Option<String>,

@@ -113,8 +113,12 @@ impl LevelColors {
             .bold();
         Self { rgb, dark, bg }
     }
-}
 
+    pub fn with_bg(rgb: (u8, u8, u8), bg: Style) -> Self {
+        let dark = (rgb.0 >> 1, rgb.1 >> 1, rgb.2 >> 1);
+        Self { rgb, dark, bg }
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
     pub accent: Style,
@@ -130,6 +134,33 @@ pub struct Theme {
 }
 
 impl Theme {
+    pub fn custom(
+        accent: (u8, u8, u8),
+        secondary: (u8, u8, u8),
+        text: (u8, u8, u8),
+        error: (u8, u8, u8),
+        warn: (u8, u8, u8),
+        info: (u8, u8, u8),
+        debug: (u8, u8, u8),
+        trace: (u8, u8, u8),
+    ) -> Self {
+        let accent = Style::new().truecolor(accent.0, accent.1, accent.2);
+        let secondary = Style::new().truecolor(secondary.0, secondary.1, secondary.2);
+        let text = Style::new().truecolor(text.0, text.1, text.2);
+        Self {
+            accent_dimmed: accent.dimmed(),
+            text_dimmed: text.dimmed(),
+            accent,
+            secondary,
+            text,
+            error: LevelColors::new(error),
+            warn: LevelColors::new(warn),
+            info: LevelColors::new(info),
+            debug: LevelColors::new(debug),
+            trace: LevelColors::new(trace),
+        }
+    }
+
     pub fn trans_flag() -> Self {
         let accent = Style::new().truecolor(91, 206, 250);
         let secondary = Style::new().truecolor(245, 169, 184);
