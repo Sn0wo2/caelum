@@ -151,13 +151,11 @@ impl FileLoggingConfig {
     }
 }
 
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct FileLoggingConfigBuilder {
     pub path: Option<PathBuf>,
     pub rotation: LogRotation,
 }
-
 
 impl FileLoggingConfigBuilder {
     pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
