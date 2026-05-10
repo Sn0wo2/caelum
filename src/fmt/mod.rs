@@ -1,6 +1,6 @@
 mod theme;
 
-pub use theme::{Icons, LevelLabels, StyleConfig, Theme};
+pub use theme::{Icons, LevelLabels, StyleConfig, Theme, ThemeRgb};
 
 use arrayvec::ArrayString;
 use chrono::Local;

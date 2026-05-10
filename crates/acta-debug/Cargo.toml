@@ -7,6 +7,6 @@ repository = "https://github.com/Sn0wo2/acta"
 license = "MIT"
 
 [dependencies]
-acta = { path = "../..", version = "0.0.0", features = ["async", "file", "compress", "serde", "unicode", "nerd"] }
+acta = { path = "../..", features = ["async", "file", "compress", "serde", "unicode", "nerd"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }

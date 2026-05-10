@@ -11,7 +11,7 @@ mod rotation;
 mod writer;
 
 pub use error::{ActaError, Result};
-pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme};
+pub use fmt::{AnsiFormatter, Icons, LevelLabels, StyleConfig, Theme, ThemeRgb};
 pub use rotation::rotate_log_file;
 
 pub use tracing::{
