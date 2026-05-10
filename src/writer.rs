@@ -76,8 +76,7 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
 
         while let Some(data) = receiver.recv().await {
             if let Err(e) = writer.write_all(&data).await {
-                writeln!(std::io::stderr(), "async writer error: {e}")
-                    .expect("failed to write async");
+                let _ = writeln!(std::io::stderr(), "async writer error: {e}");
             }
             count_clone.fetch_sub(1, Ordering::Relaxed);
         }
