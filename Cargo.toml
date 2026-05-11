@@ -2,9 +2,9 @@
 name = "acta"
 version.workspace = true
 edition = "2024"
-description = "A customizable logging library for Rust"
+description = "Make Tracing Great Again."
 repository = "https://github.com/Sn0wo2/acta"
-license = "MIT"
+license = "Apache-2.0"
 keywords = ["tracing", "logging", "formatting", "colors", "theme"]
 categories = ["development-tools::debugging", "development-tools::profiling"]
 exclude = [".github/", ".idea/", "img.png"]
