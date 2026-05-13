@@ -254,6 +254,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
 /// - `Rotation::None`: no-op.
 /// - `Rotation::Rename`: rename to `<stem>.<timestamp>.log`.
 /// - `Rotation::Compress`: gzip + delete original.
+#[cfg(feature = "file")]
 pub fn rotate_log_file(path: &Path, mode: Rotation) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -281,6 +282,7 @@ pub fn rotate_log_file(path: &Path, mode: Rotation) -> Result<()> {
     }
 }
 
+#[cfg(feature = "file")]
 fn now_timestamp() -> String {
     chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }
