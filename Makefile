@@ -1,4 +1,4 @@
-.PHONY: all lint test test-all test-no-default fmt fmt-check ci publish-dry run debug build build-snapshot release release-snapshot check clean
+.PHONY: all fix lint test test-all test-no-default fmt fmt-check publish-dry run debug build build-snapshot release release-snapshot check clean
 
 all: check
 
@@ -13,6 +13,9 @@ clippy:
 
 lint: fmt-check clippy
 
+fix:
+	cargo fix --all-features --allow-dirty
+
 test:
 	cargo test --all --all-features
 
@@ -22,7 +25,7 @@ test-all:
 test-no-default:
 	cargo test --all --no-default-features
 
-ci: lint test test-all test-no-default publish-dry
+check: fix lint test test-all test-no-default publish-dry
 
 publish-dry:
 	cargo publish --manifest-path crates/acta-build/Cargo.toml --dry-run --allow-dirty
@@ -33,8 +36,6 @@ run:
 
 check-debug:
 	cargo check -p acta-debug --all-features
-
-debug: run
 
 build:
 	goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml
@@ -47,8 +48,6 @@ release:
 
 release-snapshot:
 	goreleaser release --snapshot --clean --skip=before --config .goreleaser.yml
-
-check: ci
 
 clean:
 	cargo clean
