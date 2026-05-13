@@ -103,7 +103,7 @@ impl MakeWriter<'_> for NativeAsyncWriter {
     type Writer = tracing_appender::non_blocking::NonBlocking;
 
     fn make_writer(&self) -> Self::Writer {
-        self.writer.clone()
+        self.writer.to_owned()
     }
 }
 
