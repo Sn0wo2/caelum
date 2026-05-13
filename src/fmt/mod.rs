@@ -1,9 +1,6 @@
-mod theme;
-
-pub use theme::{Icons, LevelLabels, StyleConfig, Theme, ThemeRgb};
-
+use crate::config::{Icons, LevelLabels, StyleConfig, Theme};
 use arrayvec::ArrayString;
-use chrono::Local;
+use chrono::Utc;
 use owo_colors::Style;
 use smallvec::SmallVec;
 use std::borrow::Cow;
@@ -17,6 +14,33 @@ use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent};
 use tracing_subscriber::registry::LookupSpan;
 
+#[derive(Clone, Copy, Debug)]
+struct LevelStyles {
+    bracket_fg: Style,
+    bracket_bg: Style,
+    label: Style,
+}
+
+fn make_level_styles(r: u8, g: u8, b: u8) -> LevelStyles {
+    LevelStyles {
+        bracket_fg: Style::new().truecolor(r, g, b),
+        bracket_bg: Style::new().truecolor(r, g, b).on_truecolor(r, g, b),
+        label: Style::new()
+            .truecolor(r >> 2, g >> 2, b >> 2)
+            .on_truecolor(r, g, b),
+    }
+}
+
+fn build_all_level_styles(theme: &Theme) -> [LevelStyles; 5] {
+    [
+        make_level_styles(theme.error.0, theme.error.1, theme.error.2),
+        make_level_styles(theme.warn.0, theme.warn.1, theme.warn.2),
+        make_level_styles(theme.info.0, theme.info.1, theme.info.2),
+        make_level_styles(theme.debug.0, theme.debug.1, theme.debug.2),
+        make_level_styles(theme.trace.0, theme.trace.1, theme.trace.2),
+    ]
+}
+
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
 
 const PATH_BUF_SIZE: usize = 256;
@@ -28,6 +52,7 @@ pub struct AnsiFormatter {
     pub(crate) show_path: bool,
     pub(crate) show_spans: bool,
     style: StyleConfig,
+    level_styles: [LevelStyles; 5],
 }
 
 impl Default for AnsiFormatter {
@@ -40,12 +65,14 @@ impl AnsiFormatter {
     #[must_use]
     pub fn new() -> Self {
         let config = StyleConfig::default();
+        let level_styles = build_all_level_styles(&config.theme);
         Self {
             time_format: String::from("%H:%M:%S"),
             path_width: BUILD_PATH_WIDTH,
             show_path: true,
             show_spans: true,
             style: config,
+            level_styles,
         }
     }
 
@@ -61,6 +88,7 @@ impl AnsiFormatter {
 
     #[must_use]
     pub fn with_style_config(mut self, style: StyleConfig) -> Self {
+        self.level_styles = build_all_level_styles(&style.theme);
         self.style = style;
         self
     }
@@ -79,6 +107,7 @@ impl AnsiFormatter {
 
     #[must_use]
     pub fn with_theme(mut self, theme: Theme) -> Self {
+        self.level_styles = build_all_level_styles(&theme);
         self.style.theme = theme;
         self
     }
@@ -108,7 +137,7 @@ impl AnsiFormatter {
     }
 
     fn write_time(&self, writer: &mut Writer<'_>, theme: &Theme) -> fmt::Result {
-        let now = Local::now();
+        let now = Utc::now();
         write!(
             writer,
             "{}",
@@ -281,20 +310,18 @@ where
 
         let level = event.metadata().level();
 
-        let (lc, level_label) = match *level {
-            Level::ERROR => (&config.theme.error, config.labels.error),
-            Level::WARN => (&config.theme.warn, config.labels.warn),
-            Level::INFO => (&config.theme.info, config.labels.info),
-            Level::DEBUG => (&config.theme.debug, config.labels.debug),
-            Level::TRACE => (&config.theme.trace, config.labels.trace),
+        let (ls, level_label) = match *level {
+            Level::ERROR => (&self.level_styles[0], config.labels.error),
+            Level::WARN => (&self.level_styles[1], config.labels.warn),
+            Level::INFO => (&self.level_styles[2], config.labels.info),
+            Level::DEBUG => (&self.level_styles[3], config.labels.debug),
+            Level::TRACE => (&self.level_styles[4], config.labels.trace),
         };
 
         let fg_style = if is_nerd {
-            Style::new().truecolor(lc.0, lc.1, lc.2)
+            ls.bracket_fg
         } else {
-            Style::new()
-                .truecolor(lc.0, lc.1, lc.2)
-                .on_truecolor(lc.0, lc.1, lc.2)
+            ls.bracket_bg
         };
 
         write!(
@@ -310,14 +337,7 @@ where
         )?;
 
         write!(writer, "{}", fg_style.style(config.icons.bracket_open))?;
-        write!(
-            writer,
-            "{}",
-            Style::new()
-                .truecolor(lc.0 >> 2, lc.1 >> 2, lc.2 >> 2)
-                .on_truecolor(lc.0, lc.1, lc.2)
-                .style(level_label)
-        )?;
+        write!(writer, "{}", ls.label.style(level_label))?;
         write!(writer, "{} ", fg_style.style(config.icons.bracket_close))?;
 
         write!(

@@ -1,9 +1,9 @@
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::Layered;
 
-use crate::config::{FilterDirective, LogFilter, LogLevel};
-use crate::error::Result;
-use crate::fmt::StyleConfig;
+use crate::Result;
+use crate::config::StyleConfig;
+use crate::config::{Filter, Level};
 
 pub(crate) type FmtLayer =
     Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
@@ -13,7 +13,7 @@ type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscr
 #[must_use = "dropping ReloadHandle loses the ability to change log filters at runtime"]
 pub struct ReloadHandle {
     raw: RawReloadHandle,
-    filter: LogFilter,
+    filter: Filter,
     style: StyleConfig,
 }
 
@@ -30,35 +30,35 @@ impl ReloadHandle {
 
     pub fn reload(&mut self, directive: &str) -> Result<()> {
         self.apply_directive(directive)?;
-        self.filter = LogFilter::new(LogLevel::Custom(FilterDirective::new(directive)));
+        self.filter = Filter::new(Level::Custom(directive.to_owned()));
         Ok(())
     }
 
-    pub fn set_filter(&mut self, filter: LogFilter) -> Result<()> {
-        let directive = filter.as_filter_directive();
+    pub fn set_filter(&mut self, filter: Filter) -> Result<()> {
+        let directive = filter.as_directive();
         self.apply_directive(&directive)?;
         self.filter = filter;
         Ok(())
     }
 
-    pub fn set_level(&mut self, level: LogLevel) -> Result<()> {
+    pub fn set_level(&mut self, level: Level) -> Result<()> {
         self.filter.level = level;
         self.apply_current_filter()
     }
 
-    pub fn set_target_level(&mut self, target: impl Into<String>, level: LogLevel) -> Result<()> {
+    pub fn set_target_level(&mut self, target: impl Into<String>, level: Level) -> Result<()> {
         let target = target.into();
-        self.filter.set_target_level(target, level);
+        self.filter.set_target(target, level);
         self.apply_current_filter()
     }
 
     pub fn remove_target_level(&mut self, target: &str) -> Result<()> {
-        self.filter.remove_target_level(target);
+        self.filter.remove_target(target);
         self.apply_current_filter()
     }
 
     fn apply_current_filter(&self) -> Result<()> {
-        let directive = self.filter.as_filter_directive();
+        let directive = self.filter.as_directive();
         let env_filter = EnvFilter::try_new(&directive)?;
         self.raw.modify(|f| *f = env_filter)?;
         Ok(())
@@ -72,20 +72,16 @@ impl ReloadHandle {
 }
 
 pub fn build_reload_filter(
-    level: &LogLevel,
+    level: Level,
     style: StyleConfig,
 ) -> (
     tracing_subscriber::reload::Layer<EnvFilter, InnerSubscriber>,
     ReloadHandle,
 ) {
-    let (layer, raw_handle) =
-        tracing_subscriber::reload::Layer::new(EnvFilter::new(level.as_filter_directive()));
-    (
-        layer,
-        ReloadHandle {
-            raw: raw_handle,
-            filter: LogFilter::new(level.clone()),
-            style,
-        },
-    )
+    let filter = Filter::new(level);
+    let (layer, raw) = tracing_subscriber::reload::Layer::new(
+        EnvFilter::try_new(filter.as_directive()).unwrap_or_default(),
+    );
+
+    (layer, ReloadHandle { raw, filter, style })
 }

@@ -2,9 +2,9 @@
 use std::sync::LazyLock;
 
 use acta::{
-    AnsiFormatter, ConsoleConfig, ConsoleWriter, FileLoggingConfig, FilterDirective, Icons,
-    LevelLabels, LogFormat, LogLevel, LogRotation, StyleConfig, Theme, build_console_layer,
-    build_console_layer_with, build_reload_filter, rotate_log_file,
+    AnsiFormatter, ConsoleConfig, FileConfig, Format, Icons, Level, LevelLabels, Rotation,
+    StyleConfig, Theme, Writer, build_console_layer, build_console_layer_with, build_reload_filter,
+    rotate_log_file,
 };
 use acta::{LoggingConfig, build_file_layer, init_tracing};
 use smallvec::{SmallVec, smallvec};
@@ -35,6 +35,9 @@ fn section(title: &str) {
 
 #[macro_export]
 macro_rules! log {
+    (pad, $msg:expr) => {
+        log!("   ·", $msg)
+    };
     (sub, $msg:expr) => {
         log!("[-]", $msg)
     };
@@ -124,7 +127,7 @@ fn main() {
     log!(sub, "Pretty format — target, file, line, span context");
     {
         let console = ConsoleConfig {
-            format: LogFormat::Pretty,
+            format: Format::Pretty,
             ..Default::default()
         };
         let layer = build_console_layer(&console);
@@ -135,7 +138,7 @@ fn main() {
     log!(sub, "JSON format — machine-readable structured output");
     {
         let console = ConsoleConfig {
-            format: LogFormat::Json,
+            format: Format::Json,
             ansi: false,
             ..Default::default()
         };
@@ -161,7 +164,7 @@ fn main() {
             "Pretty — multiline, with target path and span context"
         );
         let console = ConsoleConfig {
-            format: LogFormat::Pretty,
+            format: Format::Pretty,
             ..Default::default()
         };
         let layer = build_console_layer(&console);
@@ -344,7 +347,7 @@ fn main() {
     );
     {
         let (filter_layer, mut reload_handle) =
-            build_reload_filter(&LogLevel::Info, StyleConfig::default());
+            build_reload_filter(Level::Info, StyleConfig::default());
         let console = ConsoleConfig::default();
         let fmt = AnsiFormatter::new()
             .with_show_path(false)
@@ -360,17 +363,17 @@ fn main() {
             tracing::debug!("suppressed: debug below Info threshold");
             tracing::trace!("suppressed: trace below Info threshold");
 
-            reload_handle.set_level(LogLevel::Debug).unwrap();
+            reload_handle.set_level(Level::Debug).unwrap();
             log!(info, "reload → set_level(Debug)");
             tracing::debug!("visible: debug now passes Debug filter");
             tracing::trace!("suppressed: trace still below Debug threshold");
 
-            reload_handle.set_level(LogLevel::Trace).unwrap();
+            reload_handle.set_level(Level::Trace).unwrap();
             log!(info, "reload → set_level(Trace)");
             tracing::trace!("visible: trace now passes Trace filter");
 
             reload_handle
-                .set_target_level("reload_demo", LogLevel::Warn)
+                .set_target_level("reload_demo", Level::Warn)
                 .unwrap();
             log!(info, "reload → set_target_level(reload_demo, Warn)");
             tracing::info!(target: "reload_demo", "suppressed: target capped at Warn, info < Warn");
@@ -391,7 +394,7 @@ fn main() {
             .with_show_spans(false);
         let style = fmt.style_config();
         let layer = build_console_layer_with(&console, &fmt);
-        let (filter_layer, mut reload_handle) = build_reload_filter(&LogLevel::Info, *style);
+        let (filter_layer, mut reload_handle) = build_reload_filter(Level::Info, *style);
         let subscriber = tracing_subscriber::registry()
             .with(layer)
             .with(filter_layer);
@@ -442,7 +445,7 @@ fn main() {
     log!(sub, "Stderr writer — redirect log output to standard error");
     {
         let console = ConsoleConfig {
-            writer: ConsoleWriter::Stderr,
+            writer: Writer::Stderr,
             ..Default::default()
         };
         let fmt = AnsiFormatter::new()
@@ -461,8 +464,8 @@ fn main() {
             (
                 "json + stderr + no-ansi",
                 ConsoleConfig {
-                    format: LogFormat::Json,
-                    writer: ConsoleWriter::Stderr,
+                    format: Format::Json,
+                    writer: Writer::Stderr,
                     ansi: false,
                     ..Default::default()
                 },
@@ -470,7 +473,7 @@ fn main() {
             (
                 "pretty + no-path + no-spans",
                 ConsoleConfig {
-                    format: LogFormat::Pretty,
+                    format: Format::Pretty,
                     show_path: false,
                     show_spans: false,
                     ..Default::default()
@@ -486,20 +489,17 @@ fn main() {
 
     log!(sub, "Log level to tracing filter directive mapping");
     {
-        let levels: SmallVec<[LogLevel; 7]> = smallvec![
-            LogLevel::Error,
-            LogLevel::Warn,
-            LogLevel::Info,
-            LogLevel::Debug,
-            LogLevel::Trace,
-            LogLevel::Off,
-            LogLevel::Custom(FilterDirective::new("info,my_crate=debug")),
+        let levels: SmallVec<[Level; 7]> = smallvec![
+            Level::Error,
+            Level::Warn,
+            Level::Info,
+            Level::Debug,
+            Level::Trace,
+            Level::Off,
+            Level::Custom("info,my_crate=debug".to_string()),
         ];
         for level in &levels {
-            log!(
-                info,
-                &format!("{:?} → \"{}\"", level, level.as_filter_directive())
-            );
+            log!(info, &format!("{:?} → \"{}\"", level, level.as_directive()));
         }
     }
 
@@ -510,8 +510,8 @@ fn main() {
         log!(success, "build_console_layer(default)");
 
         let layer = build_console_layer(&ConsoleConfig {
-            format: LogFormat::Json,
-            writer: ConsoleWriter::Stderr,
+            format: Format::Json,
+            writer: Writer::Stderr,
             ansi: false,
             ..Default::default()
         });
@@ -525,9 +525,9 @@ fn main() {
         drop(std::fs::create_dir_all(&tmp_dir));
         let log_path = tmp_dir.join("test.log");
 
-        let file_config = FileLoggingConfig {
+        let file_config = FileConfig {
             path: log_path.clone(),
-            rotation: LogRotation::Rename,
+            rotation: Rotation::Rename,
         };
         log!(
             info,
@@ -535,7 +535,7 @@ fn main() {
         );
 
         std::fs::write(&log_path, b"old log content\n").ok();
-        match rotate_log_file(&log_path, LogRotation::Rename) {
+        match rotate_log_file(&log_path, Rotation::Rename) {
             Ok(()) => log!(
                 success,
                 "rotate(Rename) — old file renamed with timestamp suffix"
@@ -545,7 +545,7 @@ fn main() {
 
         {
             std::fs::write(&log_path, b"compress me\n").ok();
-            match rotate_log_file(&log_path, LogRotation::Compress) {
+            match rotate_log_file(&log_path, Rotation::Compress) {
                 Ok(()) => log!(success, "rotate(Compress) — old file compressed to .gz"),
                 Err(e) => log!(fail, &format!("rotate(Compress): {e}")),
             }
@@ -554,7 +554,7 @@ fn main() {
         if let Ok(entries) = std::fs::read_dir(&tmp_dir) {
             log!(info, "rotated files on disk:");
             for entry in entries.flatten() {
-                println!("      · {}", entry.file_name().to_string_lossy());
+                log!(pad, entry.file_name().to_string_lossy());
             }
         }
         drop(std::fs::remove_dir_all(&tmp_dir));
@@ -565,16 +565,13 @@ fn main() {
         let tmp_dir = std::env::temp_dir().join("acta-debug-file");
         drop(std::fs::create_dir_all(&tmp_dir));
 
-        let result = build_file_layer(&FileLoggingConfig {
+        let result = build_file_layer(&FileConfig {
             path: tmp_dir.join("app.log"),
-            rotation: LogRotation::None,
+            rotation: Rotation::None,
         });
         match result {
             Ok(r) => {
-                log!(
-                    success,
-                    &format!("build_file_layer → {}", r.path().display())
-                );
+                log!(success, &format!("build_file_layer → {}", r.2.display()));
                 drop(r);
             }
             Err(e) => log!(fail, &format!("build_file_layer: {e}")),
@@ -591,15 +588,15 @@ fn main() {
         drop(std::fs::create_dir_all(&tmp_dir));
 
         let config = LoggingConfig {
-            level: LogLevel::Debug,
+            level: Level::Debug,
             console: Some(ConsoleConfig {
                 show_path: false,
                 show_spans: false,
                 ..Default::default()
             }),
-            file: Some(FileLoggingConfig {
+            file: Some(FileConfig {
                 path: tmp_dir.join("app.log"),
-                rotation: LogRotation::None,
+                rotation: Rotation::None,
             }),
         };
 

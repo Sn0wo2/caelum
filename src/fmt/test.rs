@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::LogRotation;
+use crate::config::Rotation;
 use crate::rotate_log_file;
 use smallvec::SmallVec;
 
@@ -111,10 +111,10 @@ fn format_path_strips_src() {
 fn rotate_nonexistent_file_is_noop() {
     let path = std::env::temp_dir().join("acta-test-nonexistent.log");
     drop(std::fs::remove_file(&path));
-    assert!(rotate_log_file(&path, LogRotation::Rename).is_ok());
+    assert!(rotate_log_file(&path, Rotation::Rename).is_ok());
     #[cfg(feature = "compress")]
-    assert!(rotate_log_file(&path, LogRotation::Compress).is_ok());
-    assert!(rotate_log_file(&path, LogRotation::None).is_ok());
+    assert!(rotate_log_file(&path, Rotation::Compress).is_ok());
+    assert!(rotate_log_file(&path, Rotation::None).is_ok());
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn rotate_none_keeps_file() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"hello\n").unwrap();
 
-    rotate_log_file(&path, LogRotation::None).unwrap();
+    rotate_log_file(&path, Rotation::None).unwrap();
     assert!(path.exists());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "hello\n");
     drop(std::fs::remove_dir_all(&dir));
@@ -138,7 +138,7 @@ fn rotate_rename() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"old content\n").unwrap();
 
-    rotate_log_file(&path, LogRotation::Rename).unwrap();
+    rotate_log_file(&path, Rotation::Rename).unwrap();
     assert!(!path.exists());
 
     let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
@@ -157,7 +157,7 @@ fn rotate_compress() {
     let path = dir.join("app.log");
     std::fs::write(&path, b"compress me\n").unwrap();
 
-    rotate_log_file(&path, LogRotation::Compress).unwrap();
+    rotate_log_file(&path, Rotation::Compress).unwrap();
     assert!(!path.exists());
 
     let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();

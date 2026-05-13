@@ -2,8 +2,8 @@ use super::*;
 
 #[test]
 fn build_console_layer_all_variants() {
-    let formats = [LogFormat::Pretty, LogFormat::Compact, LogFormat::Json];
-    let writers = [ConsoleWriter::Stdout, ConsoleWriter::Stderr];
+    let formats = [Format::Pretty, Format::Compact, Format::Json];
+    let writers = [Writer::Stdout, Writer::Stderr];
 
     for format in &formats {
         for writer in &writers {
@@ -55,31 +55,28 @@ fn build_file_layer_creates_dirs() {
     let nested = dir.join("a").join("b");
     let log_path = nested.join("app.log");
 
-    let result = build_file_layer(&FileLoggingConfig {
+    let result = build_file_layer(&FileConfig {
         path: log_path,
-        rotation: LogRotation::None,
+        rotation: Rotation::None,
     });
     assert!(result.is_ok());
 
-    let r = result.unwrap();
-    assert!(r.path().parent().unwrap().exists());
-    drop(r);
+    let (_writer, _guard, path) = result.unwrap();
+    assert!(path.parent().unwrap().exists());
 
     drop(std::fs::remove_dir_all(&dir));
 }
 
 #[test]
 fn build_reload_filter_works() {
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
-    assert!(handle.set_level(LogLevel::Debug).is_ok());
-    assert!(handle.set_target_level("my_crate", LogLevel::Trace).is_ok());
+    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
+    assert!(handle.set_level(Level::Debug).is_ok());
+    assert!(handle.set_target_level("my_crate", Level::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());
     assert!(handle.reload("info,my_crate=trace").is_ok());
     assert!(
         handle
-            .set_filter(
-                LogFilter::new(LogLevel::Warn).with_target_level("my_crate", LogLevel::Debug)
-            )
+            .set_filter(Filter::new(Level::Warn).with_target("my_crate", Level::Debug))
             .is_ok()
     );
 }
@@ -128,7 +125,7 @@ fn resolve_log_path_fallback_when_parent_is_file() {
 #[test]
 fn reload_handle_with_style_config() {
     let style = StyleConfig::default();
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, style);
+    let (_layer, mut handle) = build_reload_filter(Level::Info, style);
     handle.with_style(|s| s.theme = Theme::dracula());
     handle.with_style(|s| s.icons = Icons::unicode());
     handle.with_style(|s| s.labels = LevelLabels::short());
@@ -136,16 +133,17 @@ fn reload_handle_with_style_config() {
 
 #[test]
 fn reload_handle_set_target_level_accepts_string() {
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
+    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
     let target = String::from("my_crate");
-    assert!(handle.set_target_level(target, LogLevel::Trace).is_ok());
+    assert!(handle.set_target_level(target, Level::Trace).is_ok());
 }
 
 #[test]
 fn reload_handle_remove_nonexistent_target_level() {
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
+    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
     assert!(handle.remove_target_level("nonexistent_crate").is_ok());
 }
+
 #[test]
 fn acta_error_display_lock_poisoned() {
     let msg = format!("{}", ActaError::LockPoisoned);
@@ -154,14 +152,14 @@ fn acta_error_display_lock_poisoned() {
 
 #[test]
 fn acta_error_display_io() {
-    let inner = std::io::Error::new(std::io::ErrorKind::NotFound, "test error");
+    let inner = io::Error::new(io::ErrorKind::NotFound, "test error");
     let msg = format!("{}", ActaError::Io(inner));
     assert!(msg.contains("I/O error"));
 }
 
 #[test]
 fn acta_error_from_io_error() {
-    let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+    let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
     let error: ActaError = io_err.into();
     assert!(matches!(error, ActaError::Io(_)));
 }

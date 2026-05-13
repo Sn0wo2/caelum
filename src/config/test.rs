@@ -3,14 +3,14 @@ use super::*;
 #[test]
 fn logging_config_default() {
     let config = LoggingConfig::default();
-    assert!(matches!(config.level, LogLevel::Info));
+    assert!(matches!(config.level, Level::Info));
     assert!(config.console.is_some());
     assert!(config.file.is_none());
 
     let console = config.console.unwrap();
-    assert!(matches!(console.format, LogFormat::Compact));
+    assert!(matches!(console.format, Format::Compact));
     assert!(console.ansi);
-    assert!(matches!(console.writer, ConsoleWriter::Stdout));
+    assert!(matches!(console.writer, Writer::Stdout));
     assert!(console.show_path);
     assert!(console.show_spans);
     assert!(console.time_format.is_none());
@@ -19,112 +19,79 @@ fn logging_config_default() {
 #[test]
 fn console_config_default() {
     let cfg = ConsoleConfig::default();
-    assert!(matches!(cfg.format, LogFormat::Compact));
+    assert!(matches!(cfg.format, Format::Compact));
     assert!(cfg.ansi);
     assert!(cfg.show_path);
     assert!(cfg.show_spans);
 }
 
 #[test]
-fn log_level_directives() {
-    assert_eq!(LogLevel::Error.as_filter_directive(), "error");
-    assert_eq!(LogLevel::Warn.as_filter_directive(), "warn");
-    assert_eq!(LogLevel::Info.as_filter_directive(), "info");
-    assert_eq!(LogLevel::Debug.as_filter_directive(), "debug");
-    assert_eq!(LogLevel::Trace.as_filter_directive(), "trace");
-    assert_eq!(LogLevel::Off.as_filter_directive(), "off");
+fn level_directives() {
+    assert_eq!(Level::Error.as_directive(), "error");
+    assert_eq!(Level::Warn.as_directive(), "warn");
+    assert_eq!(Level::Info.as_directive(), "info");
+    assert_eq!(Level::Debug.as_directive(), "debug");
+    assert_eq!(Level::Trace.as_directive(), "trace");
+    assert_eq!(Level::Off.as_directive(), "off");
 }
 
 #[test]
-fn log_level_custom_directive() {
-    let level = LogLevel::Custom(FilterDirective::new("info,my_crate=debug"));
-    assert_eq!(level.as_filter_directive(), "info,my_crate=debug");
+fn level_custom_directive() {
+    let level = Level::Custom("info,my_crate=debug".into());
+    assert_eq!(level.as_directive(), "info,my_crate=debug");
 }
 
 #[test]
-fn log_filter_builds_directive() {
-    let filter = LogFilter::new(LogLevel::Debug)
-        .with_target_level("my_crate", LogLevel::Trace)
-        .with_target_level("my_crate::db", LogLevel::Warn);
+fn filter_builds_directive() {
+    let filter = Filter::new(Level::Debug)
+        .with_target("my_crate", Level::Trace)
+        .with_target("my_crate::db", Level::Warn);
 
-    let directive = filter.as_filter_directive();
-
+    let directive = filter.as_directive();
     assert!(directive.starts_with("debug,"));
     assert!(directive.contains("my_crate=trace"));
     assert!(directive.contains("my_crate::db=warn"));
-
     assert_eq!(directive.matches(',').count(), 2);
 }
 
 #[test]
-fn log_filter_updates_targets() {
-    let mut filter = LogFilter::new(LogLevel::Info);
-    filter.set_target_level("my_crate", LogLevel::Debug);
-    filter.set_target_level("my_crate", LogLevel::Trace);
+fn filter_updates_targets() {
+    let mut filter = Filter::new(Level::Info);
+    filter.set_target("my_crate", Level::Debug);
+    filter.set_target("my_crate", Level::Trace);
 
     assert_eq!(filter.targets.len(), 1);
-    assert_eq!(filter.as_filter_directive(), "info,my_crate=trace");
-    assert!(filter.remove_target_level("my_crate"));
-    assert_eq!(filter.as_filter_directive(), "info");
+    assert_eq!(filter.as_directive(), "info,my_crate=trace");
+    assert!(filter.remove_target("my_crate"));
+    assert_eq!(filter.as_directive(), "info");
 }
 
 #[test]
-fn log_rotation_default_is_none() {
-    assert!(matches!(LogRotation::default(), LogRotation::None));
+fn rotation_default_is_none() {
+    assert!(matches!(Rotation::default(), Rotation::None));
 }
 
 #[test]
-fn filter_directive_new_str() {
-    let directive = FilterDirective::new("info");
-    assert_eq!(directive.as_str(), "info");
+fn filter_remove_target_exists() {
+    let mut filter = Filter::new(Level::Info);
+    filter.set_target("my_crate", Level::Debug);
+    assert!(filter.remove_target("my_crate"));
 }
 
 #[test]
-fn filter_directive_new_string() {
-    let directive = FilterDirective::new(String::from("debug"));
-    assert_eq!(directive.as_str(), "debug");
+fn filter_remove_target_not_exists() {
+    let mut filter = Filter::new(Level::Info);
+    assert!(!filter.remove_target("nonexistent"));
 }
 
 #[test]
-fn filter_directive_display() {
-    let directive = FilterDirective::new("test");
-    assert_eq!(format!("{}", directive), "test");
-}
-
-#[test]
-fn filter_directive_as_ref() {
-    let directive = FilterDirective::new("trace");
-    let _: &str = directive.as_ref();
-    assert_eq!(directive.as_ref(), "trace");
-}
-
-#[test]
-fn filter_directive_from_string() {
-    let directive: FilterDirective = String::from("warn").into();
-    assert_eq!(directive.as_str(), "warn");
-}
-
-#[test]
-fn log_filter_remove_target_level_exists() {
-    let mut filter = LogFilter::new(LogLevel::Info);
-    filter.set_target_level("my_crate", LogLevel::Debug);
-    assert!(filter.remove_target_level("my_crate"));
-}
-
-#[test]
-fn log_filter_remove_target_level_not_exists() {
-    let mut filter = LogFilter::new(LogLevel::Info);
-    assert!(!filter.remove_target_level("nonexistent"));
-}
-
-#[test]
-fn log_filter_from_log_level() {
-    let filter: LogFilter = LogLevel::Warn.into();
+fn filter_from_level() {
+    let filter: Filter = Level::Warn.into();
     assert!(filter.targets.is_empty());
 }
 
 #[test]
-fn log_filter_from_log_level_debug() {
-    let filter: LogFilter = LogLevel::Debug.into();
-    assert_eq!(filter.as_filter_directive(), "debug");
+fn filter_from_level_debug() {
+    let filter: Filter = Level::Debug.into();
+    assert_eq!(filter.as_directive(), "debug");
 }
