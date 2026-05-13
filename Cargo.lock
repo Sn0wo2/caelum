@@ -37,6 +37,7 @@ name = "acta-debug"
 version = "0.0.0"
 dependencies = [
  "acta",
+ "smallvec",
  "tracing",
  "tracing-subscriber",
 ]

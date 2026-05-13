@@ -89,6 +89,8 @@ print_stderr = "warn"
 wildcard_imports = "warn"
 str_to_string = "warn"
 mem_forget = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
