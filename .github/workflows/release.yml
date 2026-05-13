@@ -58,42 +58,23 @@ jobs:
           key: ${{ runner.os }}-cargo-tool-zigbuild-v1
 
       - name: Install cargo-zigbuild
-        run: |
-          command -v cargo-zigbuild &> /dev/null || pip3 install cargo-zigbuild
+        run: python3 scripts/ensure-tool.py cargo-zigbuild -- pip3 install cargo-zigbuild
 
       - name: Ensure build script is executable
         run: chmod +x scripts/cargo-or-zigbuild.py
       - name: Determine version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          else
-            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
-          fi
-
-
+        run: python3 scripts/release-determine-version.py "${{ inputs.version }}"
 
       - name: Bump version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: |
           pip3 install -q tomlkit
-          python3 -c "import tomlkit; v='$VERSION'; d=tomlkit.parse(open('Cargo.toml').read()); d['workspace']['package']['version']=v; d['workspace']['dependencies']['acta-build']['version']=v; open('Cargo.toml','w').write(tomlkit.dumps(d))"
-          cargo update -w
+          python3 scripts/release-bump-version.py "$VERSION"
 
       - name: Commit and tag
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -am "chore: release v$VERSION"
-          fi
-          if [ "${{ github.event_name }}" = "push" ]; then
-            git tag -f "v$VERSION"
-          else
-            git tag "v$VERSION"
-          fi
+        run: python3 scripts/release-git.py commit-and-tag "$VERSION"
 
       - name: Clean up build artifacts
         run: rm -rf .zig-cache/
@@ -114,11 +95,7 @@ jobs:
 
       - name: Push version bump
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
-        run: |
-          git push origin "v$VERSION" --force
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            git push origin HEAD:refs/heads/${{ github.event.repository.default_branch }}
-          fi
+        run: python3 scripts/release-git.py push "$VERSION"
 
       - name: Publish acta-build to crates.io
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
@@ -127,6 +104,7 @@ jobs:
       - name: Publish acta to crates.io
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: cargo publish --allow-dirty
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:

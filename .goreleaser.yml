@@ -5,12 +5,12 @@ project_name: acta
 before:
   hooks:
     - rustup default stable
-    - bash -c 'command -v cargo-zigbuild &>/dev/null || pip3 install cargo-zigbuild'
-    - cargo fmt --all -- --check
-    - cargo clippy --all-features -- -D warnings
-    - cargo test --all
-    - cargo test --all --all-features
-    - cargo test --all --no-default-features
+    - python3 scripts/ensure-tool.py cargo-zigbuild -- pip3 install cargo-zigbuild
+    - python3 scripts/cargo-fmt.py
+    - python3 scripts/cargo-clippy.py
+    - python3 scripts/cargo-test.py
+    - python3 scripts/cargo-test.py --all-features
+    - python3 scripts/cargo-test.py --no-default-features
     - cargo publish --manifest-path crates/acta-build/Cargo.toml --dry-run --allow-dirty
     - cargo publish --dry-run --allow-dirty
 

@@ -31,12 +31,7 @@ jobs:
 
       - name: Check for changes
         id: fmt-changes
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
+        run: python3 scripts/check-git-diff.py
 
       - name: Create Pull Request
         if: steps.fmt-changes.outputs.has_changes == 'true'
@@ -80,12 +75,7 @@ jobs:
 
       - name: Check for changes
         id: clippy-changes
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
+        run: python3 scripts/check-git-diff.py
 
       - name: Create Pull Request
         if: steps.clippy-changes.outputs.has_changes == 'true'
@@ -176,10 +166,7 @@ jobs:
           key: ${{ runner.os }}-cargo-tool-deny-v1
 
       - name: Install cargo-deny
-        run: |
-          if ! command -v cargo-deny &> /dev/null; then
-            cargo install cargo-deny
-          fi
+        run: python3 scripts/ensure-tool.py cargo-deny -- cargo install cargo-deny
 
       - name: Run cargo-deny
         run: cargo deny check
@@ -207,10 +194,7 @@ jobs:
           key: ${{ runner.os }}-cargo-tool-audit-v1
 
       - name: Install cargo-audit
-        run: |
-          if ! command -v cargo-audit &> /dev/null; then
-            cargo install cargo-audit
-          fi
+        run: python3 scripts/ensure-tool.py cargo-audit -- cargo install cargo-audit
 
       - name: Run cargo-audit
         run: cargo audit
@@ -239,14 +223,10 @@ jobs:
           key: ${{ runner.os }}-cargo-tool-geiger-v1
 
       - name: Install cargo-geiger
-        run: |
-          if ! command -v cargo-geiger &> /dev/null; then
-            cargo install cargo-geiger --locked
-          fi
+        run: python3 scripts/ensure-tool.py cargo-geiger -- cargo install cargo-geiger --locked
 
       - name: Run cargo-geiger
-        run: |
-          cargo +nightly geiger --all-features --output-format GitHubMarkdown > geiger-report.md 2>&1 || true
+        run: python3 scripts/geiger-run.py
 
       - name: Upload Geiger Report
         uses: actions/upload-artifact@v7
@@ -256,11 +236,7 @@ jobs:
           retention-days: 30
 
       - name: Summary
-        run: |
-          echo "## Cargo Geiger Report" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 50 geiger-report.md >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+        run: python3 scripts/geiger-summary.py
 
   semver:
     name: Semver Checks
@@ -288,10 +264,7 @@ jobs:
           key: ${{ runner.os }}-cargo-tool-semver-checks-v1
 
       - name: Install cargo-semver-checks
-        run: |
-          if ! command -v cargo-semver-checks &> /dev/null; then
-            cargo install cargo-semver-checks --locked
-          fi
+        run: python3 scripts/ensure-tool.py cargo-semver-checks -- cargo install cargo-semver-checks --locked
 
       - name: Run cargo-semver-checks
         run: cargo semver-checks check-release --all-features
