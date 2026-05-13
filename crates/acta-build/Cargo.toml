@@ -5,7 +5,7 @@ edition = "2024"
 description = "Build-time helper for acta path width calculation"
 repository = "https://github.com/Sn0wo2/acta"
 publish = true
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 walkdir = "2.5.0"

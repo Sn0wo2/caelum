@@ -4,9 +4,10 @@ version.workspace = true
 edition = "2024"
 description = "Debug suite and demo binary for acta"
 repository = "https://github.com/Sn0wo2/acta"
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 acta = { path = "../..", features = ["async", "file", "compress", "serde", "unicode", "nerd"] }
+smallvec = "1.15.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }
