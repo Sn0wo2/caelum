@@ -1,5 +1,6 @@
 use super::*;
 use crate::config::Rotation;
+#[cfg(feature = "file")]
 use crate::rotate_log_file;
 use smallvec::SmallVec;
 
@@ -107,6 +108,7 @@ fn format_path_strips_src() {
     assert!(!result.contains("src/"));
 }
 
+#[cfg(feature = "file")]
 #[test]
 fn rotate_nonexistent_file_is_noop() {
     let path = std::env::temp_dir().join("acta-test-nonexistent.log");
@@ -117,6 +119,7 @@ fn rotate_nonexistent_file_is_noop() {
     assert!(rotate_log_file(&path, Rotation::None).is_ok());
 }
 
+#[cfg(feature = "file")]
 #[test]
 fn rotate_none_keeps_file() {
     let dir = std::env::temp_dir().join("acta-test-fmt-none");
@@ -130,6 +133,7 @@ fn rotate_none_keeps_file() {
     drop(std::fs::remove_dir_all(&dir));
 }
 
+#[cfg(feature = "file")]
 #[test]
 fn rotate_rename() {
     let dir = std::env::temp_dir().join("acta-test-fmt-rename");
