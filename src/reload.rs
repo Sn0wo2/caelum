@@ -1,11 +1,9 @@
-use std::sync::{Arc, RwLock};
-
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::Layered;
 
 use crate::config::{FilterDirective, LogFilter, LogLevel};
-use crate::error::{ActaError, Result};
-use crate::fmt::{Icons, LevelLabels, StyleConfig, Theme};
+use crate::error::Result;
+use crate::fmt::StyleConfig;
 
 pub(crate) type FmtLayer =
     Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
@@ -13,11 +11,10 @@ pub(crate) type InnerSubscriber = Layered<FmtLayer, tracing_subscriber::Registry
 type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscriber>;
 
 #[must_use = "dropping ReloadHandle loses the ability to change log filters at runtime"]
-#[derive(Clone)]
 pub struct ReloadHandle {
     raw: RawReloadHandle,
-    filter: Arc<RwLock<LogFilter>>,
-    style: Option<StyleConfig>,
+    filter: LogFilter,
+    style: StyleConfig,
 }
 
 impl std::fmt::Debug for ReloadHandle {
@@ -27,73 +24,43 @@ impl std::fmt::Debug for ReloadHandle {
 }
 
 impl ReloadHandle {
-    pub fn reload(&self, directive: &str) -> Result<()> {
+    pub fn with_style(&mut self, f: impl FnOnce(&mut StyleConfig)) {
+        f(&mut self.style);
+    }
+
+    pub fn reload(&mut self, directive: &str) -> Result<()> {
         self.apply_directive(directive)?;
-        self.store_filter(LogFilter::new(LogLevel::Custom(FilterDirective::new(
-            directive,
-        ))))?;
+        self.filter = LogFilter::new(LogLevel::Custom(FilterDirective::new(directive)));
         Ok(())
     }
 
-    pub fn set_filter(&self, filter: LogFilter) -> Result<()> {
+    pub fn set_filter(&mut self, filter: LogFilter) -> Result<()> {
         let directive = filter.as_filter_directive();
         self.apply_directive(&directive)?;
-        self.store_filter(filter)?;
+        self.filter = filter;
         Ok(())
     }
 
-    pub fn set_level(&self, level: LogLevel) -> Result<()> {
-        self.update_filter(|filter| filter.level = level)
+    pub fn set_level(&mut self, level: LogLevel) -> Result<()> {
+        self.filter.level = level;
+        self.apply_current_filter()
     }
 
-    pub fn set_target_level(&self, target: impl Into<String>, level: LogLevel) -> Result<()> {
+    pub fn set_target_level(&mut self, target: impl Into<String>, level: LogLevel) -> Result<()> {
         let target = target.into();
-        self.update_filter(|filter| filter.set_target_level(target, level))
+        self.filter.set_target_level(target, level);
+        self.apply_current_filter()
     }
 
-    pub fn remove_target_level(&self, target: &str) -> Result<()> {
-        self.update_filter(|filter| {
-            filter.remove_target_level(target);
-        })
+    pub fn remove_target_level(&mut self, target: &str) -> Result<()> {
+        self.filter.remove_target_level(target);
+        self.apply_current_filter()
     }
 
-    fn with_style(&mut self, f: impl FnOnce(&mut StyleConfig)) -> Result<()> {
-        if let Some(ref mut config) = self.style {
-            f(config);
-            Ok(())
-        } else {
-            Err(ActaError::StyleNotConfigured)
-        }
-    }
-
-    pub fn set_icons(&mut self, icons: Icons) -> Result<()> {
-        self.with_style(|s| s.icons = icons)
-    }
-
-    pub fn set_theme(&mut self, theme: Theme) -> Result<()> {
-        self.with_style(|s| s.theme = theme)
-    }
-
-    pub fn set_labels(&mut self, labels: LevelLabels) -> Result<()> {
-        self.with_style(|s| s.labels = labels)
-    }
-
-    fn update_filter(&self, update: impl FnOnce(&mut LogFilter)) -> Result<()> {
-        let mut next = self.current_filter()?;
-        update(&mut next);
-        self.set_filter(next)
-    }
-
-    fn current_filter(&self) -> Result<LogFilter> {
-        Ok(self
-            .filter
-            .read()
-            .map_err(|_| ActaError::LockPoisoned)?
-            .clone())
-    }
-
-    fn store_filter(&self, filter: LogFilter) -> Result<()> {
-        *self.filter.write().map_err(|_| ActaError::LockPoisoned)? = filter;
+    fn apply_current_filter(&self) -> Result<()> {
+        let directive = self.filter.as_filter_directive();
+        let env_filter = EnvFilter::try_new(&directive)?;
+        self.raw.modify(|f| *f = env_filter)?;
         Ok(())
     }
 
@@ -106,18 +73,18 @@ impl ReloadHandle {
 
 pub fn build_reload_filter(
     level: &LogLevel,
-    style: Option<StyleConfig>,
+    style: StyleConfig,
 ) -> (
     tracing_subscriber::reload::Layer<EnvFilter, InnerSubscriber>,
     ReloadHandle,
 ) {
-    let filter = EnvFilter::new(level.as_filter_directive());
-    let (layer, raw_handle) = tracing_subscriber::reload::Layer::new(filter);
+    let (layer, raw_handle) =
+        tracing_subscriber::reload::Layer::new(EnvFilter::new(level.as_filter_directive()));
     (
         layer,
         ReloadHandle {
             raw: raw_handle,
-            filter: Arc::new(RwLock::new(LogFilter::new(level.clone()))),
+            filter: LogFilter::new(level.clone()),
             style,
         },
     )

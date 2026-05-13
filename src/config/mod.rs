@@ -1,7 +1,7 @@
+use crate::fmt::StyleConfig;
 use smart_default::SmartDefault;
 use std::collections::HashMap;
 use std::path::PathBuf;
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[derive(Clone, Debug, Default)]
@@ -151,28 +151,35 @@ impl FileLoggingConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct FileLoggingConfigBuilder {
-    pub path: Option<PathBuf>,
-    pub rotation: LogRotation,
+    inner: FileLoggingConfig,
+}
+
+impl Default for FileLoggingConfigBuilder {
+    fn default() -> Self {
+        Self {
+            inner: FileLoggingConfig {
+                path: PathBuf::from("app.log"),
+                rotation: LogRotation::default(),
+            },
+        }
+    }
 }
 
 impl FileLoggingConfigBuilder {
     pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.path = Some(path.into());
+        self.inner.path = path.into();
         self
     }
 
     pub fn rotation(mut self, rotation: LogRotation) -> Self {
-        self.rotation = rotation;
+        self.inner.rotation = rotation;
         self
     }
 
     pub fn build(self) -> FileLoggingConfig {
-        FileLoggingConfig {
-            path: self.path.unwrap_or_else(|| PathBuf::from("app.log")),
-            rotation: self.rotation,
-        }
+        self.inner
     }
 }
 
@@ -220,6 +227,9 @@ pub struct ConsoleConfig {
     pub show_spans: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub time_format: Option<String>,
+    #[default(StyleConfig::default())]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub style: StyleConfig,
 }
 impl ConsoleConfig {
     pub fn builder() -> ConsoleConfigBuilder {
@@ -227,69 +237,49 @@ impl ConsoleConfig {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ConsoleConfigBuilder {
-    format: LogFormat,
-    ansi: bool,
-    writer: ConsoleWriter,
-    show_path: bool,
-    show_spans: bool,
-    time_format: Option<String>,
-}
-
-impl Default for ConsoleConfigBuilder {
-    fn default() -> Self {
-        Self {
-            format: LogFormat::default(),
-            ansi: true,
-            writer: ConsoleWriter::default(),
-            show_path: true,
-            show_spans: true,
-            time_format: None,
-        }
-    }
+    inner: ConsoleConfig,
 }
 
 impl ConsoleConfigBuilder {
     pub fn format(mut self, format: LogFormat) -> Self {
-        self.format = format;
+        self.inner.format = format;
         self
     }
 
     pub fn ansi(mut self, ansi: bool) -> Self {
-        self.ansi = ansi;
+        self.inner.ansi = ansi;
         self
     }
 
     pub fn writer(mut self, writer: ConsoleWriter) -> Self {
-        self.writer = writer;
+        self.inner.writer = writer;
         self
     }
 
     pub fn show_path(mut self, show: bool) -> Self {
-        self.show_path = show;
+        self.inner.show_path = show;
         self
     }
 
     pub fn show_spans(mut self, show: bool) -> Self {
-        self.show_spans = show;
+        self.inner.show_spans = show;
         self
     }
 
     pub fn time_format(mut self, fmt: impl Into<String>) -> Self {
-        self.time_format = Some(fmt.into());
+        self.inner.time_format = Some(fmt.into());
+        self
+    }
+
+    pub fn style(mut self, style: StyleConfig) -> Self {
+        self.inner.style = style;
         self
     }
 
     pub fn build(self) -> ConsoleConfig {
-        ConsoleConfig {
-            format: self.format,
-            ansi: self.ansi,
-            writer: self.writer,
-            show_path: self.show_path,
-            show_spans: self.show_spans,
-            time_format: self.time_format,
-        }
+        self.inner
     }
 }
 
@@ -315,50 +305,34 @@ impl LoggingConfig {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LoggingConfigBuilder {
-    level: LogLevel,
-    console: Option<ConsoleConfig>,
-    file: Option<FileLoggingConfig>,
-}
-
-impl Default for LoggingConfigBuilder {
-    fn default() -> Self {
-        Self {
-            level: LogLevel::Info,
-            console: Some(ConsoleConfig::default()),
-            file: None,
-        }
-    }
+    inner: LoggingConfig,
 }
 
 impl LoggingConfigBuilder {
     pub fn level(mut self, level: LogLevel) -> Self {
-        self.level = level;
+        self.inner.level = level;
         self
     }
 
     pub fn console(mut self, console: ConsoleConfig) -> Self {
-        self.console = Some(console);
+        self.inner.console = Some(console);
         self
     }
 
     pub fn no_console(mut self) -> Self {
-        self.console = None;
+        self.inner.console = None;
         self
     }
 
     pub fn file(mut self, file: FileLoggingConfig) -> Self {
-        self.file = Some(file);
+        self.inner.file = Some(file);
         self
     }
 
     pub fn build(self) -> LoggingConfig {
-        LoggingConfig {
-            level: self.level,
-            console: self.console,
-            file: self.file,
-        }
+        self.inner
     }
 }
 

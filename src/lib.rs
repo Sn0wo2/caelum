@@ -54,46 +54,59 @@ pub use crate::reload::ReloadHandle;
 #[must_use = "dropping TracingGuard will stop file logging"]
 #[derive(Debug)]
 pub struct TracingGuard {
-    pub worker_guard: Option<LogHandle>,
-    pub log_path: Option<PathBuf>,
-    pub reload_handle: ReloadHandle,
+    #[allow(dead_code)]
+    worker_guard: Option<LogHandle>,
+    log_path: Option<PathBuf>,
+    reload_handle: ReloadHandle,
+}
+
+impl TracingGuard {
+    pub fn reload_handle(&self) -> &ReloadHandle {
+        &self.reload_handle
+    }
+
+    pub fn reload_handle_mut(&mut self) -> &mut ReloadHandle {
+        &mut self.reload_handle
+    }
+
+    pub fn log_path(&self) -> Option<&std::path::Path> {
+        self.log_path.as_deref()
+    }
 }
 
 pub fn build_console_layer(console: &ConsoleConfig) -> FmtLayer {
     let mut formatter = AnsiFormatter::new()
+        .with_style_config(console.style)
         .with_show_path(console.show_path)
         .with_show_spans(console.show_spans);
-
     if let Some(tf) = &console.time_format {
         formatter = formatter.with_time_format(tf.clone());
     }
-
     build_console_layer_with(console, &formatter)
 }
 
 pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatter) -> FmtLayer {
-    macro_rules! with_writer {
-        ($layer:expr) => {{
-            let layer = $layer;
+    macro_rules! writer {
+        ($layer:expr $(,)?) => {{
             match console.writer {
-                ConsoleWriter::Stdout => layer.with_writer(std::io::stdout).boxed(),
-                ConsoleWriter::Stderr => layer.with_writer(std::io::stderr).boxed(),
+                ConsoleWriter::Stdout => $layer.with_writer(std::io::stdout).boxed(),
+                ConsoleWriter::Stderr => $layer.with_writer(std::io::stderr).boxed(),
                 #[cfg(feature = "custom-async")]
-                ConsoleWriter::AsyncStdout(AsyncWriterMode::Custom) => layer
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Custom) => $layer
                     .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stdout))
                     .boxed(),
                 #[cfg(feature = "native-async")]
-                ConsoleWriter::AsyncStdout(AsyncWriterMode::Native) => layer
+                ConsoleWriter::AsyncStdout(AsyncWriterMode::Native) => $layer
                     .with_writer(writer::native_async_writer(
                         writer::AsyncWriterTarget::Stdout,
                     ))
                     .boxed(),
                 #[cfg(feature = "custom-async")]
-                ConsoleWriter::AsyncStderr(AsyncWriterMode::Custom) => layer
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Custom) => $layer
                     .with_writer(writer::async_writer_for(writer::AsyncWriterTarget::Stderr))
                     .boxed(),
                 #[cfg(feature = "native-async")]
-                ConsoleWriter::AsyncStderr(AsyncWriterMode::Native) => layer
+                ConsoleWriter::AsyncStderr(AsyncWriterMode::Native) => $layer
                     .with_writer(writer::native_async_writer(
                         writer::AsyncWriterTarget::Stderr,
                     ))
@@ -102,31 +115,32 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
         }};
     }
 
+    let base = || {
+        tracing_subscriber::fmt::Layer::default()
+            .with_thread_ids(false)
+            .with_thread_names(false)
+            .with_span_events(FmtSpan::NONE)
+    };
+
     match &console.format {
-        LogFormat::Pretty => with_writer!(
-            tracing_subscriber::fmt::Layer::default()
+        LogFormat::Pretty => writer!(
+            base()
                 .pretty()
                 .with_target(true)
                 .with_file(true)
                 .with_line_number(true)
-                .with_thread_ids(false)
-                .with_thread_names(false)
                 .with_ansi(console.ansi)
-                .with_span_events(FmtSpan::NONE)
         ),
-        LogFormat::Compact => with_writer!(
-            tracing_subscriber::fmt::Layer::default()
+        LogFormat::Compact => writer!(
+            base()
                 .with_target(false)
                 .with_file(false)
                 .with_line_number(false)
-                .with_thread_ids(false)
-                .with_thread_names(false)
                 .with_ansi(console.ansi)
-                .with_span_events(FmtSpan::NONE)
                 .event_format(formatter.clone())
         ),
-        LogFormat::Json => with_writer!(
-            tracing_subscriber::fmt::Layer::default()
+        LogFormat::Json => writer!(
+            base()
                 .json()
                 .with_target(false)
                 .with_file(false)
@@ -142,9 +156,16 @@ pub fn build_console_layer_with(console: &ConsoleConfig, formatter: &AnsiFormatt
 #[cfg(feature = "file")]
 #[must_use = "dropping FileLayerParts.guard will stop file logging"]
 pub struct FileLayerParts {
-    pub writer: tracing_appender::non_blocking::NonBlocking,
-    pub guard: LogHandle,
-    pub path: PathBuf,
+    writer: tracing_appender::non_blocking::NonBlocking,
+    guard: LogHandle,
+    path: PathBuf,
+}
+
+#[cfg(feature = "file")]
+impl FileLayerParts {
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
 }
 
 #[cfg(feature = "file")]
@@ -166,12 +187,10 @@ pub fn build_file_layer(file_config: &FileLoggingConfig) -> Result<FileLayerPart
     rotate_log_file(path, file_config.rotation)?;
     let path = resolve_log_path(path);
 
-    let file_appender = tracing_appender::rolling::never(
+    let (non_blocking, guard) = tracing_appender::non_blocking(tracing_appender::rolling::never(
         path.parent().unwrap_or(std::path::Path::new(".")),
         path.file_name().unwrap_or_default(),
-    );
-
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    ));
 
     Ok(FileLayerParts {
         writer: non_blocking,
@@ -184,7 +203,11 @@ pub use crate::reload::build_reload_filter;
 
 #[cfg(feature = "file")]
 pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
-    let (filter, reload_handle) = build_reload_filter(&config.level, None);
+    let style = config
+        .console
+        .as_ref()
+        .map_or_else(StyleConfig::default, |c| c.style);
+    let (filter, reload_handle) = build_reload_filter(&config.level, style);
 
     let console_layer: FmtLayer = match &config.console {
         Some(console) => build_console_layer(console),
@@ -200,18 +223,19 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
     let (worker_guard, log_path) = if let Some(file_config) = &config.file {
         let parts = build_file_layer(file_config)?;
 
-        let file_layer = tracing_subscriber::fmt::layer()
-            .json()
-            .with_target(true)
-            .with_file(true)
-            .with_line_number(true)
-            .with_current_span(true)
-            .with_span_list(true)
-            .flatten_event(true)
-            .with_ansi(false)
-            .with_writer(parts.writer);
+        let subscriber = subscriber.with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_target(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_current_span(true)
+                .with_span_list(true)
+                .flatten_event(true)
+                .with_ansi(false)
+                .with_writer(parts.writer),
+        );
 
-        let subscriber = subscriber.with(file_layer);
         tracing::subscriber::set_global_default(subscriber)?;
         (Some(parts.guard), Some(parts.path))
     } else {

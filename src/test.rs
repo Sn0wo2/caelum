@@ -14,6 +14,7 @@ fn build_console_layer_all_variants() {
                 show_path: true,
                 show_spans: true,
                 time_format: None,
+                style: StyleConfig::default(),
             };
             let _layer = build_console_layer(&cfg);
         }
@@ -61,15 +62,15 @@ fn build_file_layer_creates_dirs() {
     assert!(result.is_ok());
 
     let r = result.unwrap();
-    assert!(r.path.parent().unwrap().exists());
-    drop(r.guard);
+    assert!(r.path().parent().unwrap().exists());
+    drop(r);
 
     drop(std::fs::remove_dir_all(&dir));
 }
 
 #[test]
 fn build_reload_filter_works() {
-    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
     assert!(handle.set_level(LogLevel::Debug).is_ok());
     assert!(handle.set_target_level("my_crate", LogLevel::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());
@@ -125,56 +126,30 @@ fn resolve_log_path_fallback_when_parent_is_file() {
 }
 
 #[test]
-fn reload_handle_set_theme_with_style_config() {
+fn reload_handle_with_style_config() {
     let style = StyleConfig::default();
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
-    assert!(handle.set_theme(Theme::dracula()).is_ok());
-}
-
-#[test]
-fn reload_handle_set_icons_with_style_config() {
-    let style = StyleConfig::default();
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
-    assert!(handle.set_icons(Icons::unicode()).is_ok());
-}
-
-#[test]
-fn reload_handle_set_labels_with_style_config() {
-    let style = StyleConfig::default();
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, Some(style));
-    assert!(handle.set_labels(LevelLabels::short()).is_ok());
-}
-
-#[test]
-fn reload_handle_set_theme_without_style_config() {
-    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, None);
-    assert!(handle.set_theme(Theme::monokai()).is_err());
-    assert!(handle.set_icons(Icons::unicode()).is_err());
-    assert!(handle.set_labels(LevelLabels::long()).is_err());
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, style);
+    handle.with_style(|s| s.theme = Theme::dracula());
+    handle.with_style(|s| s.icons = Icons::unicode());
+    handle.with_style(|s| s.labels = LevelLabels::short());
 }
 
 #[test]
 fn reload_handle_set_target_level_accepts_string() {
-    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
     let target = String::from("my_crate");
     assert!(handle.set_target_level(target, LogLevel::Trace).is_ok());
 }
 
 #[test]
 fn reload_handle_remove_nonexistent_target_level() {
-    let (_layer, handle) = build_reload_filter(&LogLevel::Info, None);
+    let (_layer, mut handle) = build_reload_filter(&LogLevel::Info, StyleConfig::default());
     assert!(handle.remove_target_level("nonexistent_crate").is_ok());
 }
 #[test]
 fn acta_error_display_lock_poisoned() {
     let msg = format!("{}", ActaError::LockPoisoned);
     assert!(msg.contains("log filter state lock poisoned"));
-}
-
-#[test]
-fn acta_error_display_style_not_configured() {
-    let msg = format!("{}", ActaError::StyleNotConfigured);
-    assert!(msg.contains("formatter style reload not configured"));
 }
 
 #[test]
