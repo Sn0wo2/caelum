@@ -88,6 +88,7 @@ fn smart_truncate_trailing_slash_before_filename() {
     assert!(result.contains("file.rs:42"));
 }
 
+#[test]
 fn smart_truncate_file_part_too_long() {
     let result = AnsiFormatter::smart_truncate("very_very_long_filename_test.rs", 10, 15);
     assert!(
@@ -185,7 +186,7 @@ fn ansi_formatter_with_style_config_replaces_all() {
     let fmt = AnsiFormatter::new().with_style_config(config);
     assert_eq!(fmt.style_config().labels, LevelLabels::short());
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
-    assert!((248..=255).contains(&fmt.style_config().theme.error.rgb.0));
+    assert!((248..=255).contains(&fmt.style_config().theme.error.0));
 }
 
 #[test]
@@ -298,7 +299,7 @@ fn icons_unicode() {
     assert_eq!(icons.bracket_open, "[");
     assert_eq!(icons.bracket_close, "]");
     assert_eq!(icons.separator, "┇");
-    assert_eq!(icons.arrow, "❯");
+    assert_eq!(icons.arrow, ">");
     assert_eq!(icons.span_delimiter, "->");
 }
 

@@ -3,6 +3,7 @@ use nerd_font_symbols::{cod, fa, ple};
 use owo_colors::Style;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct LevelLabels {
     pub error: &'static str,
     pub warn: &'static str,
@@ -12,6 +13,22 @@ pub struct LevelLabels {
 }
 
 impl LevelLabels {
+    pub const fn custom(
+        error: &'static str,
+        warn: &'static str,
+        info: &'static str,
+        debug: &'static str,
+        trace: &'static str,
+    ) -> Self {
+        Self {
+            error,
+            warn,
+            info,
+            debug,
+            trace,
+        }
+    }
+
     pub const fn short() -> Self {
         Self {
             error: "E",
@@ -40,6 +57,7 @@ impl Default for LevelLabels {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Icons {
     pub bracket_open: &'static str,
     pub bracket_close: &'static str,
@@ -52,6 +70,29 @@ pub struct Icons {
 }
 
 impl Icons {
+    #[allow(clippy::too_many_arguments)]
+    pub const fn custom(
+        bracket_open: &'static str,
+        bracket_close: &'static str,
+        time_bracket_open: &'static str,
+        time_bracket_close: &'static str,
+        separator: &'static str,
+        arrow: &'static str,
+        span_delimiter: &'static str,
+        span_join: &'static str,
+    ) -> Self {
+        Self {
+            bracket_open,
+            bracket_close,
+            time_bracket_open,
+            time_bracket_close,
+            separator,
+            arrow,
+            span_delimiter,
+            span_join,
+        }
+    }
+
     pub const fn unicode() -> Self {
         Self {
             bracket_open: "[",
@@ -59,9 +100,9 @@ impl Icons {
             time_bracket_open: "\u{300c}",
             time_bracket_close: "\u{300d}",
             separator: "\u{2507}",
-            arrow: "\u{276f}",
+            arrow: ">",
             span_delimiter: "->",
-            span_join: "\u{b7}",
+            span_join: "\u{00bb}",
         }
     }
 
@@ -70,10 +111,10 @@ impl Icons {
         Self {
             bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THICK,
             bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THICK,
-            time_bracket_open: "\u{300c}",
-            time_bracket_close: "\u{300d}",
+            time_bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THIN,
+            time_bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THIN,
             separator: "\u{2507}",
-            arrow: fa::FA_ARROW_RIGHT,
+            arrow: fa::FA_CARET_RIGHT,
             span_delimiter: cod::COD_EXPORT,
             span_join: fa::FA_ANGLES_RIGHT,
         }
@@ -97,30 +138,12 @@ impl Default for Icons {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct LevelColors {
-    pub rgb: (u8, u8, u8),
-    pub dark: (u8, u8, u8),
-    pub bg: Style,
-}
+/// Raw RGB color values for constructing a [`Theme`].
+/// Raw RGB color values for constructing a [`Theme`].
+///
+/// These are compile-time constants that get "baked" into a
+/// runtime [`Theme`] via [`Theme::new`].
 
-impl LevelColors {
-    pub fn new(rgb: (u8, u8, u8)) -> Self {
-        let dark = (rgb.0 >> 1, rgb.1 >> 1, rgb.2 >> 1);
-        let bg = Style::new()
-            .on_truecolor(rgb.0, rgb.1, rgb.2)
-            .truecolor(dark.0, dark.1, dark.2)
-            .bold();
-        Self { rgb, dark, bg }
-    }
-
-    pub fn with_bg(rgb: (u8, u8, u8), bg: Style) -> Self {
-        let dark = (rgb.0 >> 1, rgb.1 >> 1, rgb.2 >> 1);
-        Self { rgb, dark, bg }
-    }
-}
-
-/// RGB color values for constructing a [`Theme`] via [`Theme::custom`].
 #[derive(Clone, Copy, Debug)]
 pub struct ThemeRgb {
     pub accent: (u8, u8, u8),
@@ -240,68 +263,64 @@ impl ThemeRgb {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub struct Theme {
     pub accent: Style,
     pub secondary: Style,
     pub text: Style,
-    pub accent_dimmed: Style,
-    pub text_dimmed: Style,
-    pub error: LevelColors,
-    pub warn: LevelColors,
-    pub info: LevelColors,
-    pub debug: LevelColors,
-    pub trace: LevelColors,
+
+    // RGB
+    pub error: (u8, u8, u8),
+    pub warn: (u8, u8, u8),
+    pub info: (u8, u8, u8),
+    pub debug: (u8, u8, u8),
+    pub trace: (u8, u8, u8),
 }
 
 impl Theme {
-    pub fn custom(rgb: ThemeRgb) -> Self {
-        let accent = Style::new().truecolor(rgb.accent.0, rgb.accent.1, rgb.accent.2);
-        let secondary = Style::new().truecolor(rgb.secondary.0, rgb.secondary.1, rgb.secondary.2);
-        let text = Style::new().truecolor(rgb.text.0, rgb.text.1, rgb.text.2);
+    pub fn new(rgb: ThemeRgb) -> Self {
         Self {
-            accent_dimmed: accent.dimmed(),
-            text_dimmed: text.dimmed(),
-            accent,
-            secondary,
-            text,
-            error: LevelColors::new(rgb.error),
-            warn: LevelColors::new(rgb.warn),
-            info: LevelColors::new(rgb.info),
-            debug: LevelColors::new(rgb.debug),
-            trace: LevelColors::new(rgb.trace),
+            accent: Style::new().truecolor(rgb.accent.0, rgb.accent.1, rgb.accent.2),
+            secondary: Style::new().truecolor(rgb.secondary.0, rgb.secondary.1, rgb.secondary.2),
+            text: Style::new().truecolor(rgb.text.0, rgb.text.1, rgb.text.2),
+            error: rgb.error,
+            warn: rgb.warn,
+            info: rgb.info,
+            debug: rgb.debug,
+            trace: rgb.trace,
         }
     }
 
     pub fn trans_flag() -> Self {
-        Self::custom(ThemeRgb::trans_flag())
+        Self::new(ThemeRgb::trans_flag())
     }
 
     pub fn monokai() -> Self {
-        Self::custom(ThemeRgb::monokai())
+        Self::new(ThemeRgb::monokai())
     }
 
     pub fn dracula() -> Self {
-        Self::custom(ThemeRgb::dracula())
+        Self::new(ThemeRgb::dracula())
     }
 
     pub fn nord() -> Self {
-        Self::custom(ThemeRgb::nord())
+        Self::new(ThemeRgb::nord())
     }
 
     pub fn catppuccin_mocha() -> Self {
-        Self::custom(ThemeRgb::catppuccin_mocha())
+        Self::new(ThemeRgb::catppuccin_mocha())
     }
 
     pub fn gruvbox() -> Self {
-        Self::custom(ThemeRgb::gruvbox())
+        Self::new(ThemeRgb::gruvbox())
     }
 
     pub fn one_dark() -> Self {
-        Self::custom(ThemeRgb::one_dark())
+        Self::new(ThemeRgb::one_dark())
     }
 
     pub fn tokyo_night() -> Self {
-        Self::custom(ThemeRgb::tokyo_night())
+        Self::new(ThemeRgb::tokyo_night())
     }
 }
 
@@ -312,6 +331,7 @@ impl Default for Theme {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[non_exhaustive]
 pub struct StyleConfig {
     pub theme: Theme,
     pub icons: Icons,
