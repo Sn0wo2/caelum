@@ -16,7 +16,7 @@ members = ["crates/*"]
 version = "0.1.0"
 
 [workspace.dependencies]
-acta-build = { path = "crates/acta-build", version = "0.1.0" }
+acta-build = { path = "crates/acta-build" }
 
 [features]
 default = ["unicode", "file"]
