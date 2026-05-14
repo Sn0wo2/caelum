@@ -7,7 +7,21 @@ repository = "https://github.com/Sn0wo2/acta"
 license = "Apache-2.0"
 
 [dependencies]
-acta = { path = "../..", features = ["async", "file", "compress", "serde", "unicode", "nerd"] }
+acta = { path = "../..", features = [
+    "async",
+    "file",
+    "compress",
+    "serde",
+    "unicode",
+    "nerd",
+] }
 smallvec = "1.15.1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "ansi", "std"] }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+    "registry",
+    "ansi",
+    "std",
+] }

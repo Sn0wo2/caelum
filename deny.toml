@@ -8,14 +8,7 @@ all-features = true
 ignore = []
 
 [licenses]
-allow = [
-    "Apache-2.0",
-    "MIT",
-    "Unicode-3.0",
-    "Unlicense",
-    "Zlib",
-    "0BSD",
-]
+allow = ["Apache-2.0", "MIT", "Unicode-3.0", "Unlicense", "Zlib", "0BSD"]
 
 [bans]
 multiple-versions = "warn"
