@@ -14,6 +14,7 @@ on:
         description: "Snapshot mode (no bump, no tag, no publish)"
         type: boolean
         default: false
+
 permissions:
   contents: write
 
@@ -70,32 +71,22 @@ jobs:
           fi
           VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Bump version
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot)
+        if: "!inputs.snapshot"
         run: cargo set-version "$VERSION"
 
       - name: Commit version bump
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot)
-        env:
-          VERSION: ${{ env.VERSION }}
+        if: "!inputs.snapshot"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet || git commit -m "chore(release): bump version to $VERSION"
 
-      - name: Tag release
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
-        env:
-          VERSION: ${{ env.VERSION }}
+      - name: Tag release (Manual only)
+        if: "github.event_name == 'workflow_dispatch' && !inputs.snapshot"
         run: git tag "v$VERSION"
-
-      - name: Push version bump
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
-        run: git push origin HEAD:main --tags
-
-      - name: Clean up build artifacts
-        run: rm -rf .zig-cache/
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
@@ -106,13 +97,19 @@ jobs:
             release
             --clean
             --skip=before
-            ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && '--snapshot' || '' }}
+            --skip=validate
+            ${{ inputs.snapshot && '--snapshot' || '' }}
             --config .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: v${{ env.VERSION }}
+
+      - name: Push version bump to main
+        if: "!inputs.snapshot"
+        run: git push origin HEAD:main --tags
 
       - name: Publish to crates.io
-        if: github.event_name == 'push' || !inputs.snapshot
+        if: "!inputs.snapshot"
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -121,6 +118,6 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
+          name: ${{ inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
           path: dist/*
-          retention-days: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 7 || 30 }}
+          retention-days: ${{ inputs.snapshot && 7 || 30 }}
