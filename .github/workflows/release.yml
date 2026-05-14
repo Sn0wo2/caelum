@@ -71,7 +71,7 @@ jobs:
           VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Bump version
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.snapshot)
         run: cargo set-version "$VERSION"
 
       - name: Commit version bump
