@@ -155,7 +155,7 @@ pub struct Theme {
 }
 
 impl Theme {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::missing_const_for_fn)]
     pub fn new(
         accent: Rgb,
         secondary: Rgb,
@@ -284,6 +284,7 @@ impl Default for Theme {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[non_exhaustive]
+#[allow(clippy::module_name_repetitions)]
 pub struct StyleConfig {
     pub theme: Theme,
     pub icons: Icons,
@@ -326,7 +327,7 @@ pub enum Level {
 }
 
 impl Level {
-    pub fn as_directive(&self) -> &str {
+    pub const fn as_directive(&self) -> &str {
         match self {
             Self::Error => "error",
             Self::Warn => "warn",
@@ -341,6 +342,7 @@ impl Level {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
+#[allow(clippy::exhaustive_structs)]
 pub struct Filter {
     pub level: Level,
     pub targets: HashMap<String, Level>,
@@ -410,6 +412,8 @@ impl<'de> serde::Deserialize<'de> for Level {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
+#[allow(clippy::exhaustive_structs)]
+#[allow(clippy::module_name_repetitions)]
 pub struct FileConfig {
     pub path: PathBuf,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -443,6 +447,7 @@ pub enum Writer {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug)]
+#[allow(clippy::exhaustive_enums)]
 pub enum AsyncMode {
     #[cfg(feature = "custom-async")]
     Custom,
@@ -467,6 +472,8 @@ impl Default for AsyncMode {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, SmartDefault)]
+#[allow(clippy::exhaustive_structs)]
+#[allow(clippy::module_name_repetitions)]
 pub struct ConsoleConfig {
     #[default(Format::default())]
     pub format: Format,
@@ -490,6 +497,8 @@ pub struct ConsoleConfig {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, SmartDefault)]
+#[allow(clippy::exhaustive_structs)]
+#[allow(clippy::module_name_repetitions)]
 pub struct LoggingConfig {
     #[default(Level::Info)]
     pub level: Level,
@@ -501,11 +510,12 @@ pub struct LoggingConfig {
 }
 
 #[cfg(feature = "serde")]
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
 #[cfg(feature = "serde")]
+#[allow(clippy::unnecessary_wraps)]
 fn default_console() -> Option<ConsoleConfig> {
     Some(ConsoleConfig::default())
 }

@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Copy, Debug)]
+#[allow(clippy::exhaustive_enums)]
 pub enum AsyncWriterTarget {
     Stdout,
     Stderr,
@@ -20,6 +21,7 @@ pub enum AsyncWriterTarget {
 
 #[cfg(feature = "custom-async")]
 #[derive(Clone, Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct AsyncWriter {
     sender: mpsc::UnboundedSender<Vec<u8>>,
     count: Arc<AtomicUsize>,
@@ -58,6 +60,7 @@ impl MakeWriter<'_> for AsyncWriter {
 }
 
 #[cfg(feature = "custom-async")]
+#[allow(clippy::module_name_repetitions)]
 pub fn async_writer() -> AsyncWriter {
     async_writer_for(AsyncWriterTarget::Stdout)
 }
@@ -86,7 +89,8 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
 }
 
 #[cfg(feature = "native-async")]
-pub(crate) struct NativeAsyncWriter {
+#[allow(clippy::module_name_repetitions)]
+pub struct NativeAsyncWriter {
     writer: tracing_appender::non_blocking::NonBlocking,
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -108,7 +112,8 @@ impl MakeWriter<'_> for NativeAsyncWriter {
 }
 
 #[cfg(feature = "native-async")]
-pub(crate) fn native_async_writer(target: AsyncWriterTarget) -> NativeAsyncWriter {
+#[allow(clippy::module_name_repetitions)]
+pub fn native_async_writer(target: AsyncWriterTarget) -> NativeAsyncWriter {
     let (writer, guard) = match target {
         AsyncWriterTarget::Stdout => tracing_appender::non_blocking(std::io::stdout()),
         AsyncWriterTarget::Stderr => tracing_appender::non_blocking(std::io::stderr()),

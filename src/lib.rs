@@ -1,12 +1,13 @@
 #![warn(missing_debug_implementations)]
 #![warn(unreachable_pub)]
 #![deny(unused_must_use)]
+#![allow(clippy::pub_use)]
 
-mod config;
-mod fmt;
-mod reload;
+pub mod config;
+pub mod fmt;
+pub mod reload;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
-mod writer;
+pub mod writer;
 
 pub use config::{Icons, LevelLabels, StyleConfig, Theme};
 pub use fmt::AnsiFormatter;
@@ -80,11 +81,11 @@ pub struct TracingGuard {
 
 #[cfg(feature = "file")]
 impl TracingGuard {
-    pub fn reload_handle(&self) -> &ReloadHandle {
+    pub const fn reload_handle(&self) -> &ReloadHandle {
         &self.reload_handle
     }
 
-    pub fn reload_handle_mut(&mut self) -> &mut ReloadHandle {
+    pub const fn reload_handle_mut(&mut self) -> &mut ReloadHandle {
         &mut self.reload_handle
     }
 
@@ -209,12 +210,14 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<TracingGuard> {
     );
 
     let subscriber = tracing_subscriber::Registry::default()
-        .with(match &config.console {
-            Some(console) => build_console_layer(console),
-            None => tracing_subscriber::fmt::Layer::default()
-                .with_writer(io::sink)
-                .boxed(),
-        })
+        .with(config.console.as_ref().map_or_else(
+            || {
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(io::sink)
+                    .boxed()
+            },
+            |console| build_console_layer(console),
+        ))
         .with(filter);
 
     let (worker_guard, log_path) = if let Some(file_config) = &config.file {
@@ -288,6 +291,7 @@ fn now_timestamp() -> String {
 }
 
 #[cfg(feature = "file")]
+#[allow(clippy::single_call_fn)]
 pub(crate) fn resolve_log_path(path: &Path) -> PathBuf {
     match std::fs::OpenOptions::new()
         .create(true)

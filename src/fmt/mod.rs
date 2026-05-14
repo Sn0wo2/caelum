@@ -21,6 +21,7 @@ struct LevelStyles {
     label: Style,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 fn make_level_styles(r: u8, g: u8, b: u8) -> LevelStyles {
     LevelStyles {
         bracket_fg: Style::new().truecolor(r, g, b),
@@ -77,12 +78,12 @@ impl AnsiFormatter {
     }
 
     #[must_use]
-    pub fn style_config(&self) -> &StyleConfig {
+    pub const fn style_config(&self) -> &StyleConfig {
         &self.style
     }
 
     #[must_use]
-    pub fn style_config_mut(&mut self) -> &mut StyleConfig {
+    pub const fn style_config_mut(&mut self) -> &mut StyleConfig {
         &mut self.style
     }
 
@@ -94,13 +95,13 @@ impl AnsiFormatter {
     }
 
     #[must_use]
-    pub fn with_icons(mut self, icons: Icons) -> Self {
+    pub const fn with_icons(mut self, icons: Icons) -> Self {
         self.style.icons = icons;
         self
     }
 
     #[must_use]
-    pub fn with_labels(mut self, labels: LevelLabels) -> Self {
+    pub const fn with_labels(mut self, labels: LevelLabels) -> Self {
         self.style.labels = labels;
         self
     }
@@ -144,7 +145,7 @@ impl AnsiFormatter {
             theme.text.style(now.format(&self.time_format))
         )
     }
-
+    #[allow(clippy::single_call_fn)]
     fn format_path(file: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
         let normalized: Cow<'_, str> = if file.contains('\\') {
             Cow::Owned(file.replace('\\', "/"))
@@ -159,14 +160,14 @@ impl AnsiFormatter {
             max_width,
         )
     }
-
+    #[allow(clippy::single_call_fn)]
     fn smart_truncate(path: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
         let mut full = ArrayString::<PATH_BUF_SIZE>::new();
         let _ = write!(full, "{path}:{line}");
 
         if full.len() <= max_width {
             let mut result = ArrayString::<PATH_BUF_SIZE>::new();
-            write!(result, "{full:>width$}", width = max_width).ok();
+            write!(result, "{full:>max_width$}").ok();
             return result;
         }
 
@@ -217,17 +218,17 @@ impl AnsiFormatter {
         write!(writer, " {} ", theme.accent.style(icons.arrow))?;
         Ok(())
     }
-
+    #[allow(clippy::single_call_fn)]
     fn format_fields(writer: &mut Writer<'_>, event: &Event<'_>, theme: &Theme) -> fmt::Result {
         let mut visitor = EventVisitor::default();
         event.record(&mut visitor);
 
-        let mut sep = "";
-
-        if let Some(msg) = visitor.message {
+        let mut sep = if let Some(msg) = visitor.message {
             write!(writer, "{}", theme.text.style(msg))?;
-            sep = " ";
-        }
+            " "
+        } else {
+            ""
+        };
 
         for (k, v) in visitor.fields {
             write!(
@@ -243,7 +244,7 @@ impl AnsiFormatter {
 
         Ok(())
     }
-
+    #[allow(clippy::single_call_fn)]
     fn format_spans<S, N>(
         writer: &mut Writer<'_>,
         ctx: &FmtContext<'_, S, N>,
@@ -264,7 +265,7 @@ impl AnsiFormatter {
         let spans: SmallVec<[_; 8]> = scope.from_root().collect();
         if spans.is_empty() {
             return Ok(());
-        };
+        }
 
         let total = spans.len();
         let accent = theme.accent;
@@ -382,7 +383,7 @@ impl tracing::field::Visit for EventVisitor {
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn Debug) {
-        self.record_field(field.name(), format!("{:?}", value));
+        self.record_field(field.name(), format!("{value:?}"));
     }
 }
 

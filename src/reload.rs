@@ -5,12 +5,12 @@ use crate::Result;
 use crate::config::StyleConfig;
 use crate::config::{Filter, Level};
 
-pub(crate) type FmtLayer =
-    Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
-pub(crate) type InnerSubscriber = Layered<FmtLayer, tracing_subscriber::Registry>;
+pub type FmtLayer = Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
+pub type InnerSubscriber = Layered<FmtLayer, tracing_subscriber::Registry>;
 type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscriber>;
 
 #[must_use = "dropping ReloadHandle loses the ability to change log filters at runtime"]
+#[allow(clippy::module_name_repetitions)]
 pub struct ReloadHandle {
     raw: RawReloadHandle,
     filter: Filter,
