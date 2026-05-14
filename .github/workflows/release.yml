@@ -22,6 +22,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   release:
     name: Release
@@ -62,18 +63,23 @@ jobs:
 
       - name: Ensure build script is executable
         run: chmod +x scripts/cargo-or-zigbuild.py
+
       - name: Determine version
         if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
         run: python3 scripts/release-determine-version.py "${{ inputs.version }}"
 
+      - name: Verify version matches tag
+        if: github.event_name == 'push'
+        run: python3 scripts/release-verify-version.py "$VERSION"
+
       - name: Bump version
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         run: |
           pip3 install -q tomlkit
           python3 scripts/release-bump-version.py "$VERSION"
 
       - name: Commit and tag
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         run: python3 scripts/release-git.py commit-and-tag "$VERSION"
 
       - name: Clean up build artifacts
@@ -94,7 +100,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push version bump
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         run: python3 scripts/release-git.py push "$VERSION"
 
       - name: Publish acta-build to crates.io

@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Git operations: commit, tag, push for release."""
-
 import os
 import sys
 from common import run, run_ok
@@ -14,8 +12,7 @@ def commit_and_tag(version):
     if r.stdout.strip():
         run(["git", "commit", "-am", f"chore: release v{version}"])
 
-    if os.environ.get("GITHUB_EVENT_NAME", "") != "push":
-        run(["git", "tag", f"v{version}"])
+    run(["git", "tag", f"v{version}"])
 
 
 def push(version):
