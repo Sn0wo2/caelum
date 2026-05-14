@@ -44,9 +44,9 @@ jobs:
           title: "chore: auto-fix formatting issues"
           body: |
             ## Auto-generated PR
-            
+
             `cargo fmt --all` found and fixed formatting issues.
-            
+
             Please review the changes before merging.
           labels: |
             automated
@@ -88,9 +88,9 @@ jobs:
           title: "chore: auto-fix clippy warnings"
           body: |
             ## Auto-generated PR
-            
+
             `cargo clippy --fix` found and fixed lint warnings.
-            
+
             Please review the changes before merging.
           labels: |
             automated
