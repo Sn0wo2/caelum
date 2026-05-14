@@ -1,13 +1,10 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (e.g. 0.1.0)"
+        description: "Version to release (e.g. 0.1.1)"
         required: true
         type: string
       snapshot:
@@ -17,19 +14,17 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   CARGO_TERM_COLOR: always
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && !inputs.snapshot && inputs.version || github.ref }}
+      group: ${{ github.workflow }}-${{ inputs.snapshot && 'snapshot' || inputs.version }}
       cancel-in-progress: false
     steps:
       - name: Checkout
@@ -64,35 +59,52 @@ jobs:
       - name: Ensure build script is executable
         run: chmod +x scripts/cargo-or-zigbuild.py
 
-      - name: Determine version
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
-        run: python3 scripts/release-determine-version.py "${{ inputs.version }}"
-
-      - name: Verify version matches tag
-        if: github.event_name == 'push'
-        run: python3 scripts/release-verify-version.py "$VERSION"
+      - name: Normalize version
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Bump version
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
+        if: '!inputs.snapshot'
         run: cargo set-version "$VERSION"
 
-      - name: Create Pull Request
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: bump-version-${{ env.VERSION }}
-          title: "chore(release): bump version to ${{ env.VERSION }}"
-          body: "Automated version bump to ${{ env.VERSION }}."
-          commit-message: "chore(release): bump version to ${{ env.VERSION }}"
-          delete-branch: true
+      - name: Commit version bump
+        if: '!inputs.snapshot'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore(release): bump version to ${VERSION}"
+        if: '!inputs.snapshot'
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore(release): bump version to $VERSION"
+
+      - name: Push version bump
+        if: '!inputs.snapshot'
+        run: git push origin HEAD:main
+
+      - name: Tag release
+        if: '!inputs.snapshot'
+        run: |
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+        if: '!inputs.snapshot'
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
 
       - name: Clean up build artifacts
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         run: rm -rf .zig-cache/
 
       - name: Run GoReleaser
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -101,22 +113,21 @@ jobs:
             release
             --clean
             --skip=before
-            ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && '--snapshot' || '' }}
+            ${{ inputs.snapshot && '--snapshot' || '' }}
             --config .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to crates.io
-        if: github.event_name == 'push'
+        if: '!inputs.snapshot'
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --allow-dirty
 
       - name: Upload artifacts
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
+          name: ${{ inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
           path: dist/*
-          retention-days: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 7 || 30 }}
+          retention-days: ${{ inputs.snapshot && 7 || 30 }}
