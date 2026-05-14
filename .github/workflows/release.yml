@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -11,7 +14,6 @@ on:
         description: "Snapshot mode (no bump, no tag, no publish)"
         type: boolean
         default: false
-
 permissions:
   contents: write
 
@@ -24,7 +26,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ inputs.snapshot && 'snapshot' || inputs.version }}
+      group: ${{ github.workflow }}-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
       - name: Checkout
@@ -61,16 +63,19 @@ jobs:
 
       - name: Normalize version
         run: |
-          VERSION="${{ inputs.version }}"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
           VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
       - name: Bump version
-        if: '!inputs.snapshot'
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         run: cargo set-version "$VERSION"
 
       - name: Commit version bump
-        if: '!inputs.snapshot'
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         env:
           VERSION: ${{ env.VERSION }}
         run: |
@@ -79,17 +84,15 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m "chore(release): bump version to $VERSION"
 
-      - name: Push version bump
-        if: '!inputs.snapshot'
-        run: git push origin HEAD:main
-
       - name: Tag release
-        if: '!inputs.snapshot'
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
         env:
           VERSION: ${{ env.VERSION }}
-        run: |
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
+        run: git tag "v$VERSION"
+
+      - name: Push version bump
+        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
+        run: git push origin HEAD:main --tags
 
       - name: Clean up build artifacts
         run: rm -rf .zig-cache/
@@ -103,13 +106,13 @@ jobs:
             release
             --clean
             --skip=before
-            ${{ inputs.snapshot && '--snapshot' || '' }}
+            ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && '--snapshot' || '' }}
             --config .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to crates.io
-        if: '!inputs.snapshot'
+        if: github.event_name == 'push' || !inputs.snapshot
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -118,6 +121,6 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
           path: dist/*
-          retention-days: ${{ inputs.snapshot && 7 || 30 }}
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 7 || 30 }}
