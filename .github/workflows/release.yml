@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -78,14 +79,23 @@ jobs:
           pip3 install -q tomlkit
           python3 scripts/release-bump-version.py "$VERSION"
 
-      - name: Commit and tag
+      - name: Create Pull Request
         if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
-        run: python3 scripts/release-git.py commit-and-tag "$VERSION"
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bump-version-${{ env.VERSION }}
+          title: "chore(release): bump version to ${{ env.VERSION }}"
+          body: "Automated version bump to ${{ env.VERSION }}."
+          commit-message: "chore(release): bump version to ${{ env.VERSION }}"
+          delete-branch: true
 
       - name: Clean up build artifacts
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         run: rm -rf .zig-cache/
 
       - name: Run GoReleaser
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -99,19 +109,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push version bump
-        if: github.event_name == 'workflow_dispatch' && !inputs.snapshot
-        run: python3 scripts/release-git.py push "$VERSION"
-
       - name: Publish acta-build to crates.io
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
+        if: github.event_name == 'push'
         run: cargo publish --manifest-path crates/acta-build/Cargo.toml --allow-dirty
 
       - name: Publish acta to crates.io
-        if: github.event_name != 'workflow_dispatch' || !inputs.snapshot
+        if: github.event_name == 'push'
         run: cargo publish --allow-dirty
 
       - name: Upload artifacts
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot)
         uses: actions/upload-artifact@v7
         with:
           name: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot && 'snapshot-artifacts' || 'release-artifacts' }}
