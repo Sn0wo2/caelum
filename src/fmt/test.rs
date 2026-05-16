@@ -1,12 +1,13 @@
+use super::visitor::EventVisitor;
 use super::*;
 use crate::config::Rotation;
 #[cfg(feature = "file")]
-use crate::rotate_log_file;
+use crate::writer::file::rotate_log_file;
 use smallvec::SmallVec;
 
 #[test]
-fn ansi_formatter_defaults() {
-    let fmt = AnsiFormatter::new();
+fn formatter_defaults() {
+    let fmt = Formatter::new();
     assert_eq!(fmt.time_format, "%H:%M:%S");
     assert_eq!(fmt.path_width, BUILD_PATH_WIDTH);
     assert!(fmt.show_path);
@@ -14,8 +15,8 @@ fn ansi_formatter_defaults() {
 }
 
 #[test]
-fn ansi_formatter_builder() {
-    let fmt = AnsiFormatter::new()
+fn formatter_builder() {
+    let fmt = Formatter::new()
         .with_time_format("%Y-%m-%d %H:%M:%S")
         .with_path_width(40)
         .with_show_path(false)
@@ -30,8 +31,8 @@ fn ansi_formatter_builder() {
 
 #[cfg(feature = "nerd")]
 #[test]
-fn ansi_formatter_with_icons() {
-    let fmt = AnsiFormatter::new().with_icons(Icons::nerd());
+fn formatter_with_icons() {
+    let fmt = Formatter::new().with_icons(Icons::nerd());
     assert_eq!(fmt.style_config().icons.bracket_open, "\u{e0b6}");
 }
 
@@ -65,45 +66,51 @@ fn icons_unicode_vs_nerd() {
 
 #[test]
 fn smart_truncate_short_path() {
-    let result = AnsiFormatter::smart_truncate("foo.rs", 10, 20);
+    let fmt = Formatter::new().with_path_width(20);
+    let result = fmt.format_path("foo.rs", 10);
     assert_eq!(result.len(), 20);
     assert!(result.contains("foo.rs:10"));
 }
 
 #[test]
 fn smart_truncate_exact_width() {
-    let result = AnsiFormatter::smart_truncate("foo.rs", 1, 8);
+    let fmt = Formatter::new().with_path_width(8);
+    let result = fmt.format_path("foo.rs", 1);
     assert_eq!(result.as_str(), "foo.rs:1");
 }
 
 #[test]
 fn smart_truncate_overflow() {
-    let result = AnsiFormatter::smart_truncate("very/long/path/file.rs", 999, 15);
+    let fmt = Formatter::new().with_path_width(15);
+    let result = fmt.format_path("very/long/path/file.rs", 999);
     assert!(result.len() <= 15);
 }
 
 #[test]
 fn smart_truncate_trailing_slash_before_filename() {
-    let result = AnsiFormatter::smart_truncate("dir/subdir/file.rs", 42, 20);
+    let fmt = Formatter::new().with_path_width(20);
+    let result = fmt.format_path("dir/subdir/file.rs", 42);
     assert!(result.len() <= 20);
     assert!(result.contains("file.rs:42"));
 }
 
 #[test]
 fn smart_truncate_file_part_too_long() {
-    let result = AnsiFormatter::smart_truncate("very_very_long_filename_test.rs", 10, 15);
+    let fmt = Formatter::new().with_path_width(15);
+    let result = fmt.format_path("very_very_long_filename_test.rs", 10);
     assert!(
         result.len() <= 18,
         "result='{}', len={}",
         result,
         result.len()
     );
-    assert!(result.starts_with('…'));
+    assert!(result.starts_with('\u{2026}'));
 }
 
 #[test]
 fn format_path_strips_src() {
-    let result = AnsiFormatter::format_path("C:\\project\\src\\lib.rs", 42, 20);
+    let fmt = Formatter::new().with_path_width(20);
+    let result = fmt.format_path("C:\\project\\src\\lib.rs", 42);
     assert!(result.contains("lib.rs:42"));
     assert!(!result.contains("src/"));
 }
@@ -174,28 +181,28 @@ fn rotate_compress() {
 }
 
 #[test]
-fn ansi_formatter_style_config_returns_reference() {
-    let fmt = AnsiFormatter::new();
+fn formatter_style_config_returns_reference() {
+    let fmt = Formatter::new();
     let config = fmt.style_config();
     assert_eq!(config.labels.error, "E");
 }
 
 #[test]
-fn ansi_formatter_with_style_config_replaces_all() {
-    let config = StyleConfig {
+fn formatter_with_style_config_replaces_all() {
+    let config = Style {
         labels: LevelLabels::short(),
         icons: Icons::unicode(),
         theme: Theme::monokai(),
     };
-    let fmt = AnsiFormatter::new().with_style_config(config);
+    let fmt = Formatter::new().with_style_config(config);
     assert_eq!(fmt.style_config().labels, LevelLabels::short());
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
     assert!((248..=255).contains(&fmt.style_config().theme.error.0));
 }
 
 #[test]
-fn ansi_formatter_with_labels_changes_labels() {
-    let fmt = AnsiFormatter::new();
+fn formatter_with_labels_changes_labels() {
+    let fmt = Formatter::new();
     let before = fmt.style_config().labels.error;
 
     let fmt = fmt.with_labels(LevelLabels::long());
@@ -204,14 +211,14 @@ fn ansi_formatter_with_labels_changes_labels() {
 }
 
 #[test]
-fn ansi_formatter_with_icons_changes_icons() {
-    let fmt = AnsiFormatter::new().with_icons(Icons::unicode());
+fn formatter_with_icons_changes_icons() {
+    let fmt = Formatter::new().with_icons(Icons::unicode());
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
 }
 
 #[test]
-fn ansi_formatter_with_theme_changes_theme() {
-    let fmt = AnsiFormatter::new().with_theme(Theme::monokai());
+fn formatter_with_theme_changes_theme() {
+    let fmt = Formatter::new().with_theme(Theme::monokai());
     assert_ne!(
         format!("{:?}", fmt.style_config().theme),
         format!("{:?}", Theme::default())
@@ -302,7 +309,7 @@ fn icons_unicode() {
     let icons = Icons::unicode();
     assert_eq!(icons.bracket_open, "[");
     assert_eq!(icons.bracket_close, "]");
-    assert_eq!(icons.separator, "┇");
+    assert_eq!(icons.separator, "\u{2507}");
     assert_eq!(icons.arrow, ">");
     assert_eq!(icons.span_delimiter, "->");
 }
@@ -322,7 +329,7 @@ fn icons_is_nerd_returns_true_for_nerd() {
 
 #[test]
 fn style_config_default() {
-    let config = StyleConfig::default();
+    let config = Style::default();
     assert_eq!(
         format!("{:?}", config.theme),
         format!("{:?}", Theme::trans_flag())
@@ -348,13 +355,7 @@ fn theme_all_have_distinct_accent_colors() {
     ];
     for i in 0..themes.len() {
         for j in (i + 1)..themes.len() {
-            assert_ne!(
-                format!("{:?}", themes[i].accent),
-                format!("{:?}", themes[j].accent),
-                "Theme {} and {} should have distinct accent colors",
-                i,
-                j
-            );
+            assert_ne!(format!("{:?}", themes[i].accent), format!("{:?}", themes[j].accent));
         }
     }
 }

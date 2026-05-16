@@ -1,32 +1,34 @@
-use crate::config::{Icons, LevelLabels, StyleConfig, Theme};
+use crate::config::{Icons, LevelLabels, Style, Theme};
 use arrayvec::ArrayString;
 use chrono::Utc;
-use owo_colors::Style;
+use owo_colors::Style as OwoStyle;
 use smallvec::SmallVec;
 use std::borrow::Cow;
 use std::fmt;
-use std::fmt::{Debug, Write};
+use std::fmt::Write;
 
-use tracing::field::Field;
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::fmt::FormattedFields;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent};
 use tracing_subscriber::registry::LookupSpan;
 
+mod visitor;
+use visitor::EventVisitor;
+
 #[derive(Clone, Copy, Debug)]
 struct LevelStyles {
-    bracket_fg: Style,
-    bracket_bg: Style,
-    label: Style,
+    bracket_fg: OwoStyle,
+    bracket_bg: OwoStyle,
+    label: OwoStyle,
 }
 
 #[allow(clippy::missing_const_for_fn)]
 fn make_level_styles(r: u8, g: u8, b: u8) -> LevelStyles {
     LevelStyles {
-        bracket_fg: Style::new().truecolor(r, g, b),
-        bracket_bg: Style::new().truecolor(r, g, b).on_truecolor(r, g, b),
-        label: Style::new()
+        bracket_fg: OwoStyle::new().truecolor(r, g, b),
+        bracket_bg: OwoStyle::new().truecolor(r, g, b).on_truecolor(r, g, b),
+        label: OwoStyle::new()
             .truecolor(r >> 2, g >> 2, b >> 2)
             .on_truecolor(r, g, b),
     }
@@ -47,25 +49,25 @@ const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width")
 const PATH_BUF_SIZE: usize = 256;
 
 #[derive(Debug, Clone)]
-pub struct AnsiFormatter {
+pub struct Formatter {
     pub(crate) time_format: String,
     pub(crate) path_width: usize,
     pub(crate) show_path: bool,
     pub(crate) show_spans: bool,
-    style: StyleConfig,
+    style: Style,
     level_styles: [LevelStyles; 5],
 }
 
-impl Default for AnsiFormatter {
+impl Default for Formatter {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AnsiFormatter {
+impl Formatter {
     #[must_use]
     pub fn new() -> Self {
-        let config = StyleConfig::default();
+        let config = Style::default();
         let level_styles = build_all_level_styles(&config.theme);
         Self {
             time_format: String::from("%H:%M:%S"),
@@ -78,17 +80,17 @@ impl AnsiFormatter {
     }
 
     #[must_use]
-    pub const fn style_config(&self) -> &StyleConfig {
+    pub const fn style_config(&self) -> &Style {
         &self.style
     }
 
     #[must_use]
-    pub const fn style_config_mut(&mut self) -> &mut StyleConfig {
+    pub const fn style_config_mut(&mut self) -> &mut Style {
         &mut self.style
     }
 
     #[must_use]
-    pub fn with_style_config(mut self, style: StyleConfig) -> Self {
+    pub fn with_style_config(mut self, style: Style) -> Self {
         self.level_styles = build_all_level_styles(&style.theme);
         self.style = style;
         self
@@ -145,23 +147,18 @@ impl AnsiFormatter {
             theme.text.style(now.format(&self.time_format))
         )
     }
-    #[allow(clippy::single_call_fn)]
-    fn format_path(file: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
+
+    fn format_path(&self, file: &str, line: u32) -> ArrayString<PATH_BUF_SIZE> {
         let normalized: Cow<'_, str> = if file.contains('\\') {
             Cow::Owned(file.replace('\\', "/"))
         } else {
             Cow::Borrowed(file)
         };
-        Self::smart_truncate(
-            normalized.find("src/").map_or(&*normalized, |i| {
-                normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
-            }),
-            line,
-            max_width,
-        )
-    }
-    #[allow(clippy::single_call_fn)]
-    fn smart_truncate(path: &str, line: u32, max_width: usize) -> ArrayString<PATH_BUF_SIZE> {
+        let path = normalized.find("src/").map_or(&*normalized, |i| {
+            normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
+        });
+
+        let max_width = self.path_width;
         let mut full = ArrayString::<PATH_BUF_SIZE>::new();
         let _ = write!(full, "{path}:{line}");
 
@@ -209,17 +206,22 @@ impl AnsiFormatter {
         write!(
             writer,
             "{}",
-            theme.text.dimmed().style(Self::format_path(
+            theme.text.dimmed().style(self.format_path(
                 event.metadata().file().unwrap_or("?"),
                 event.metadata().line().unwrap_or(0),
-                self.path_width
             ))
         )?;
         write!(writer, " {} ", theme.accent.style(icons.arrow))?;
         Ok(())
     }
-    #[allow(clippy::single_call_fn)]
-    fn format_fields(writer: &mut Writer<'_>, event: &Event<'_>, theme: &Theme) -> fmt::Result {
+
+    #[allow(clippy::unused_self)]
+    fn format_fields(
+        &self,
+        writer: &mut Writer<'_>,
+        event: &Event<'_>,
+        theme: &Theme,
+    ) -> fmt::Result {
         let mut visitor = EventVisitor::default();
         event.record(&mut visitor);
 
@@ -244,8 +246,10 @@ impl AnsiFormatter {
 
         Ok(())
     }
-    #[allow(clippy::single_call_fn)]
+
+    #[allow(clippy::unused_self)]
     fn format_spans<S, N>(
+        &self,
         writer: &mut Writer<'_>,
         ctx: &FmtContext<'_, S, N>,
         theme: &Theme,
@@ -295,7 +299,7 @@ impl AnsiFormatter {
     }
 }
 
-impl<S, N> FormatEvent<S, N> for AnsiFormatter
+impl<S, N> FormatEvent<S, N> for Formatter
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
     N: for<'a> tracing_subscriber::fmt::FormatFields<'a> + 'static,
@@ -351,39 +355,13 @@ where
             self.format_path_section(&mut writer, event, &config.theme, &config.icons)?;
         }
 
-        Self::format_fields(&mut writer, event, &config.theme)?;
+        self.format_fields(&mut writer, event, &config.theme)?;
 
         if self.show_spans {
-            Self::format_spans(&mut writer, ctx, &config.theme, &config.icons)?;
+            self.format_spans(&mut writer, ctx, &config.theme, &config.icons)?;
         }
 
         writeln!(writer)
-    }
-}
-
-#[derive(Default)]
-struct EventVisitor {
-    message: Option<String>,
-    fields: SmallVec<[(String, String); 4]>,
-}
-
-impl EventVisitor {
-    fn record_field(&mut self, name: &str, value: String) {
-        if name == "message" || name == "msg" {
-            self.message = Some(value);
-        } else {
-            self.fields.push((name.to_owned(), value));
-        }
-    }
-}
-
-impl tracing::field::Visit for EventVisitor {
-    fn record_str(&mut self, field: &Field, value: &str) {
-        self.record_field(field.name(), value.to_owned());
-    }
-
-    fn record_debug(&mut self, field: &Field, value: &dyn Debug) {
-        self.record_field(field.name(), format!("{value:?}"));
     }
 }
 
