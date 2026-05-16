@@ -1,6 +1,6 @@
 use super::visitor::EventVisitor;
 use super::*;
-use crate::config::Rotation;
+use crate::Rotation;
 #[cfg(feature = "file")]
 use crate::writer::file::rotate_log_file;
 use smallvec::SmallVec;

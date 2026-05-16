@@ -620,6 +620,7 @@ impl Default for Config {
         Self {
             level: Level::Info,
             console: Some(Console::default()),
+            #[cfg(feature = "file")]
             file: None,
         }
     }
