@@ -95,6 +95,45 @@ builds:
     env:
       - RUSTFLAGS=-C target-cpu=x86-64-v3
 
+  - id: acta-darwin-amd64-v2
+    builder: rust
+    command: build
+    tool: ./scripts/cargo-or-zigbuild.py
+    binary: acta-debug
+    targets:
+      - x86_64-apple-darwin
+    flags:
+      - --release
+      - --all-features
+      - --package=acta-debug
+    env:
+      - RUSTFLAGS=-C target-cpu=x86-64-v2
+
+  - id: acta-darwin-amd64-v3
+    builder: rust
+    command: build
+    tool: ./scripts/cargo-or-zigbuild.py
+    binary: acta-debug
+    targets:
+      - x86_64-apple-darwin
+    flags:
+      - --release
+      - --all-features
+      - --package=acta-debug
+    env:
+      - RUSTFLAGS=-C target-cpu=x86-64-v3
+
+  - id: acta-darwin-arm64
+    builder: rust
+    command: build
+    tool: ./scripts/cargo-or-zigbuild.py
+    binary: acta-debug
+    targets:
+      - aarch64-apple-darwin
+    flags:
+      - --release
+      - --all-features
+      - --package=acta-debug
 source:
   enabled: false
 
@@ -147,6 +186,30 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64_v3"
     formats:
       - zip
+    files: *common_archive_files
+
+  - id: darwin-amd64-v2
+    ids:
+      - acta-darwin-amd64-v2
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_amd64_v2"
+    formats:
+      - tar.gz
+    files: *common_archive_files
+
+  - id: darwin-amd64-v3
+    ids:
+      - acta-darwin-amd64-v3
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_amd64_v3"
+    formats:
+      - tar.gz
+    files: *common_archive_files
+
+  - id: darwin-arm64
+    ids:
+      - acta-darwin-arm64
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_arm64"
+    formats:
+      - tar.gz
     files: *common_archive_files
 
 checksum:

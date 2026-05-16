@@ -10,10 +10,10 @@ def get_host_target():
     result = subprocess.run(
         ["rustc", "-vV"], capture_output=True, text=True, check=True
     )
-    match = re.search(r"host:\s+(\S+)", result.stdout)
-    if not match:
+    if match := re.search(r"host:\s+(\S+)", result.stdout):
+        return match[1]
+    else:
         raise RuntimeError("Could not determine host target from rustc -vV")
-    return match.group(1)
 
 
 def get_target_from_args(args):
