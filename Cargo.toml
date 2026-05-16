@@ -30,7 +30,6 @@ unicode = []
 nerd = ["dep:nerd-font-symbols"]
 
 [dependencies]
-smart-default = "0.7"
 thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 flate2 = { version = "1.1.9", default-features = false, features = [

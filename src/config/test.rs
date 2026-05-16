@@ -1,8 +1,8 @@
 use super::*;
 
 #[test]
-fn logging_config_default() {
-    let config = LoggingConfig::default();
+fn config_default() {
+    let config = Config::default();
     assert!(matches!(config.level, Level::Info));
     assert!(config.console.is_some());
     assert!(config.file.is_none());
@@ -17,12 +17,39 @@ fn logging_config_default() {
 }
 
 #[test]
-fn console_config_default() {
-    let cfg = ConsoleConfig::default();
+fn console_default() {
+    let cfg = Console::default();
     assert!(matches!(cfg.format, Format::Compact));
     assert!(cfg.ansi);
     assert!(cfg.show_path);
     assert!(cfg.show_spans);
+}
+
+#[test]
+fn console_builder() {
+    let cfg = Console::builder()
+        .format(Format::Json)
+        .ansi(false)
+        .show_path(false)
+        .show_spans(false)
+        .time_format("%Y")
+        .style(Style::default())
+        .build();
+    assert!(matches!(cfg.format, Format::Json));
+    assert!(!cfg.ansi);
+    assert!(!cfg.show_path);
+    assert!(!cfg.show_spans);
+    assert_eq!(cfg.time_format, Some("%Y".to_string()));
+}
+
+#[test]
+fn config_builder() {
+    let cfg = Config::builder()
+        .level(Level::Debug)
+        .console(Console::new())
+        .build();
+    assert_eq!(cfg.level.as_directive(), "debug");
+    assert!(cfg.console.is_some());
 }
 
 #[test]
@@ -60,7 +87,6 @@ fn filter_updates_targets() {
     filter.set_target("my_crate", Level::Debug);
     filter.set_target("my_crate", Level::Trace);
 
-    assert_eq!(filter.targets.len(), 1);
     assert_eq!(filter.as_directive(), "info,my_crate=trace");
     assert!(filter.remove_target("my_crate"));
     assert_eq!(filter.as_directive(), "info");
@@ -87,7 +113,7 @@ fn filter_remove_target_not_exists() {
 #[test]
 fn filter_from_level() {
     let filter: Filter = Level::Warn.into();
-    assert!(filter.targets.is_empty());
+    assert_eq!(filter.as_directive(), "warn");
 }
 
 #[test]

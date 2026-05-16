@@ -1,7 +1,6 @@
 #[cfg(feature = "nerd")]
 use nerd_font_symbols::{cod, fa, ple};
-use owo_colors::Style;
-use smart_default::SmartDefault;
+use owo_colors::Style as OwoStyle;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -144,9 +143,9 @@ type Rgb = (u8, u8, u8);
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub struct Theme {
-    pub accent: Style,
-    pub secondary: Style,
-    pub text: Style,
+    pub accent: OwoStyle,
+    pub secondary: OwoStyle,
+    pub text: OwoStyle,
     pub error: Rgb,
     pub warn: Rgb,
     pub info: Rgb,
@@ -167,9 +166,9 @@ impl Theme {
         trace: Rgb,
     ) -> Self {
         Self {
-            accent: Style::new().truecolor(accent.0, accent.1, accent.2),
-            secondary: Style::new().truecolor(secondary.0, secondary.1, secondary.2),
-            text: Style::new().truecolor(text.0, text.1, text.2),
+            accent: OwoStyle::new().truecolor(accent.0, accent.1, accent.2),
+            secondary: OwoStyle::new().truecolor(secondary.0, secondary.1, secondary.2),
+            text: OwoStyle::new().truecolor(text.0, text.1, text.2),
             error,
             warn,
             info,
@@ -284,8 +283,7 @@ impl Default for Theme {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[non_exhaustive]
-#[allow(clippy::module_name_repetitions)]
-pub struct StyleConfig {
+pub struct Style {
     pub theme: Theme,
     pub icons: Icons,
     pub labels: LevelLabels,
@@ -338,31 +336,47 @@ impl Level {
             Self::Custom(s) => s.as_str(),
         }
     }
+
+    pub fn parse_str(s: &str) -> Self {
+        match s {
+            "error" => Self::Error,
+            "warn" => Self::Warn,
+            "info" => Self::Info,
+            "debug" => Self::Debug,
+            "trace" => Self::Trace,
+            "off" => Self::Off,
+            other => Self::Custom(other.to_owned()),
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
-#[allow(clippy::exhaustive_structs)]
+#[non_exhaustive]
 pub struct Filter {
-    pub level: Level,
-    pub targets: HashMap<String, Level>,
+    level: Level,
+    targets: HashMap<String, Level>,
 }
 
 impl Filter {
-    pub fn new(level: Level) -> Self {
+    pub fn new(level: impl Into<Level>) -> Self {
         Self {
-            level,
+            level: level.into(),
             targets: HashMap::new(),
         }
     }
 
-    pub fn with_target(mut self, target: impl Into<String>, level: Level) -> Self {
+    pub fn level(&self) -> &Level {
+        &self.level
+    }
+
+    pub fn with_target(mut self, target: impl Into<String>, level: impl Into<Level>) -> Self {
         self.set_target(target, level);
         self
     }
 
-    pub fn set_target(&mut self, target: impl Into<String>, level: Level) {
-        self.targets.insert(target.into(), level);
+    pub fn set_target(&mut self, target: impl Into<String>, level: impl Into<Level>) {
+        self.targets.insert(target.into(), level.into());
     }
 
     pub fn remove_target(&mut self, target: &str) -> bool {
@@ -398,29 +412,33 @@ impl serde::Serialize for Level {
 impl<'de> serde::Deserialize<'de> for Level {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Ok(match s.as_str() {
-            "error" => Self::Error,
-            "warn" => Self::Warn,
-            "info" => Self::Info,
-            "debug" => Self::Debug,
-            "trace" => Self::Trace,
-            "off" => Self::Off,
-            other => Self::Custom(other.to_owned()),
-        })
+        Ok(Self::parse_str(&s))
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
-#[allow(clippy::exhaustive_structs)]
-#[allow(clippy::module_name_repetitions)]
-pub struct FileConfig {
+#[non_exhaustive]
+pub struct File {
     pub path: PathBuf,
     #[cfg_attr(feature = "serde", serde(default))]
     pub rotation: Rotation,
 }
 
-impl Default for FileConfig {
+impl File {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            rotation: Rotation::default(),
+        }
+    }
+    pub fn with_rotation(mut self, rotation: Rotation) -> Self {
+        self.rotation = rotation;
+        self
+    }
+}
+
+impl Default for File {
     fn default() -> Self {
         Self {
             path: PathBuf::from("app.log"),
@@ -447,7 +465,7 @@ pub enum Writer {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug)]
-#[allow(clippy::exhaustive_enums)]
+#[non_exhaustive]
 pub enum AsyncMode {
     #[cfg(feature = "custom-async")]
     Custom,
@@ -456,7 +474,6 @@ pub enum AsyncMode {
 }
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
-#[allow(clippy::derivable_impls)]
 impl Default for AsyncMode {
     fn default() -> Self {
         #[cfg(feature = "custom-async")]
@@ -471,42 +488,180 @@ impl Default for AsyncMode {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, SmartDefault)]
-#[allow(clippy::exhaustive_structs)]
-#[allow(clippy::module_name_repetitions)]
-pub struct ConsoleConfig {
-    #[default(Format::default())]
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct Console {
     pub format: Format,
-    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub ansi: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub writer: Writer,
-    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub show_path: bool,
-    #[default = true]
     #[cfg_attr(feature = "serde", serde(default = "default_true"))]
     pub show_spans: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub time_format: Option<String>,
-    #[default(StyleConfig::default())]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub style: StyleConfig,
+    pub style: Style,
+}
+
+impl Console {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn builder() -> ConsoleBuilder {
+        ConsoleBuilder::default()
+    }
+}
+
+impl Default for Console {
+    fn default() -> Self {
+        Self {
+            format: Format::default(),
+            ansi: true,
+            writer: Writer::default(),
+            show_path: true,
+            show_spans: true,
+            time_format: None,
+            style: Style::default(),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+#[must_use]
+pub struct ConsoleBuilder {
+    format: Option<Format>,
+    ansi: Option<bool>,
+    writer: Option<Writer>,
+    show_path: Option<bool>,
+    show_spans: Option<bool>,
+    time_format: Option<String>,
+    style: Option<Style>,
+}
+
+impl ConsoleBuilder {
+    pub fn format(mut self, format: Format) -> Self {
+        self.format = Some(format);
+        self
+    }
+    pub fn ansi(mut self, ansi: bool) -> Self {
+        self.ansi = Some(ansi);
+        self
+    }
+    pub fn writer(mut self, writer: Writer) -> Self {
+        self.writer = Some(writer);
+        self
+    }
+    pub fn show_path(mut self, show: bool) -> Self {
+        self.show_path = Some(show);
+        self
+    }
+    pub fn show_spans(mut self, show: bool) -> Self {
+        self.show_spans = Some(show);
+        self
+    }
+    pub fn time_format(mut self, fmt: impl Into<String>) -> Self {
+        self.time_format = Some(fmt.into());
+        self
+    }
+    pub fn style(mut self, style: impl Into<Style>) -> Self {
+        self.style = Some(style.into());
+        self
+    }
+    pub fn build(self) -> Console {
+        let defaults = Console::default();
+        Console {
+            format: self.format.unwrap_or(defaults.format),
+            ansi: self.ansi.unwrap_or(defaults.ansi),
+            writer: self.writer.unwrap_or(defaults.writer),
+            show_path: self.show_path.unwrap_or(defaults.show_path),
+            show_spans: self.show_spans.unwrap_or(defaults.show_spans),
+            time_format: self.time_format.or(defaults.time_format),
+            style: self.style.unwrap_or(defaults.style),
+        }
+    }
+}
+
+impl From<ConsoleBuilder> for Console {
+    fn from(b: ConsoleBuilder) -> Self {
+        b.build()
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, SmartDefault)]
-#[allow(clippy::exhaustive_structs)]
-#[allow(clippy::module_name_repetitions)]
-pub struct LoggingConfig {
-    #[default(Level::Info)]
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct Config {
     pub level: Level,
-    #[default(Some(ConsoleConfig::default()))]
     #[cfg_attr(feature = "serde", serde(default = "default_console"))]
-    pub console: Option<ConsoleConfig>,
+    pub console: Option<Console>,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub file: Option<FileConfig>,
+    pub file: Option<File>,
+}
+
+impl Config {
+    pub fn new(level: impl Into<Level>) -> Self {
+        Self {
+            level: level.into(),
+            console: Some(Console::default()),
+            file: None,
+        }
+    }
+    pub fn builder() -> ConfigBuilder {
+        ConfigBuilder::default()
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: Level::Info,
+            console: Some(Console::default()),
+            file: None,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+#[must_use]
+pub struct ConfigBuilder {
+    level: Option<Level>,
+    console: Option<Console>,
+    #[cfg(feature = "file")]
+    file: Option<File>,
+}
+
+impl ConfigBuilder {
+    pub fn level(mut self, level: impl Into<Level>) -> Self {
+        self.level = Some(level.into());
+        self
+    }
+    pub fn console(mut self, console: impl Into<Console>) -> Self {
+        self.console = Some(console.into());
+        self
+    }
+    #[cfg(feature = "file")]
+    pub fn file(mut self, file: impl Into<File>) -> Self {
+        self.file = Some(file.into());
+        self
+    }
+    pub fn build(self) -> Config {
+        let defaults = Config::default();
+        Config {
+            level: self.level.unwrap_or(defaults.level),
+            console: self.console.or(defaults.console),
+            #[cfg(feature = "file")]
+            file: self.file.or(defaults.file),
+        }
+    }
+}
+
+impl From<ConfigBuilder> for Config {
+    fn from(b: ConfigBuilder) -> Self {
+        b.build()
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -516,8 +671,8 @@ const fn default_true() -> bool {
 
 #[cfg(feature = "serde")]
 #[allow(clippy::unnecessary_wraps)]
-fn default_console() -> Option<ConsoleConfig> {
-    Some(ConsoleConfig::default())
+fn default_console() -> Option<Console> {
+    Some(Console::default())
 }
 
 #[cfg(test)]
