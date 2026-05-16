@@ -1,4 +1,4 @@
-.PHONY: all fix lint test test-all test-no-default fmt fmt-check publish-dry run debug build release release-snapshot check clean
+.PHONY: all fix lint test test-all test-no-default fmt fmt-check publish-dry run debug build release release-snapshot check clean check-all-features check-no-default
 
 all: check
 
@@ -25,7 +25,13 @@ test-all:
 test-no-default:
 	cargo test --all --no-default-features
 
-check: fix lint test test-all test-no-default publish-dry
+check-all-features:
+	cargo check --all-targets --all-features
+
+check-no-default:
+	cargo check --all-targets --no-default-features
+
+check: fix lint test test-all test-no-default check-all-features check-no-default publish-dry
 
 publish-dry:
 	cargo publish --manifest-path crates/acta-build/Cargo.toml --dry-run --allow-dirty
