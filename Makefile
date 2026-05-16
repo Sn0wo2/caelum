@@ -1,4 +1,4 @@
-.PHONY: all fix lint test test-all test-no-default fmt fmt-check publish-dry run debug build build-snapshot release release-snapshot check clean
+.PHONY: all fix lint test test-all test-no-default fmt fmt-check publish-dry run debug build release release-snapshot check clean
 
 all: check
 
@@ -40,14 +40,11 @@ check-debug:
 build:
 	goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml
 
-build-snapshot:
-	goreleaser release --snapshot --clean --skip=before --config .goreleaser.yml
-
 release:
-	goreleaser release --clean --skip=before --config .goreleaser.yml
+	goreleaser release --clean --skip=before --skip=validate --config .goreleaser.yml
 
 release-snapshot:
-	goreleaser release --snapshot --clean --skip=before --config .goreleaser.yml
+	goreleaser release --snapshot --clean --skip=before --skip=validate --config .goreleaser.yml
 
 clean:
 	cargo clean

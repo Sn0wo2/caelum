@@ -87,18 +87,24 @@ jobs:
         if: "github.event_name == 'workflow_dispatch' && !inputs.snapshot"
         run: git tag "v$VERSION"
 
-      - name: Run GoReleaser
+      - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: >
-            release
-            --clean
-            --skip=before
-            --skip=validate
-            ${{ inputs.snapshot && '--snapshot' || '' }}
-            --config .goreleaser.yml
+          install-only: true
+
+      - name: Run GoReleaser
+        if: "!inputs.snapshot"
+        run: make release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: v${{ env.VERSION }}
+          SDKROOT: /opt/MacOSX11.3.sdk
+
+      - name: Run GoReleaser (snapshot)
+        if: inputs.snapshot
+        run: make release-snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: v${{ env.VERSION }}

@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - id: default
-            command: cargo test --all
+            make_target: test-all
           - id: all-features
-            command: cargo test --all --all-features
+            make_target: test
           - id: no-default
-            command: cargo test --all --no-default-features
+            make_target: test-no-default
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -33,4 +33,4 @@ jobs:
           cache-on-failure: true
 
       - name: Run tests
-        run: ${{ matrix.command }}
+        run: make ${{ matrix.make_target }}

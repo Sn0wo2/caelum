@@ -27,7 +27,7 @@ jobs:
           cache-on-failure: true
 
       - name: Run cargo fmt
-        run: cargo fmt --all
+        run: make fmt
 
       - name: Check for changes
         id: fmt-changes

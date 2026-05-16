@@ -22,9 +22,15 @@ target
 
 .vscode/
 
-# acta
-.zig-cache/
-
 # Python
 __pycache__/
 *.pyc
+
+# zig
+.zig-cache/
+
+# goreleaser
+dist/
+
+# omo
+.sisyphus/

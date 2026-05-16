@@ -58,7 +58,7 @@ jobs:
         run: chmod +x ./scripts/cargo-or-zigbuild.py
 
       - name: Build
-        run: goreleaser build --snapshot --clean --skip=before --config .goreleaser.yml
+        run: make build
         env:
           SDKROOT: /opt/MacOSX11.3.sdk
 
