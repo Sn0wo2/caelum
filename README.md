@@ -23,11 +23,28 @@ cargo add acta --features serde,compress,nerd,async
 
 ## Quick start
 
+Import the types you need directly:
+
 ```rust
-use acta::{init_tracing, LoggingConfig, Result};
+use acta::{init, Config, Result};
 
 fn main() -> Result<()> {
-    let _guard = init_tracing(&LoggingConfig::default())?;
+    let _guard = init(Config::default())?;
+
+    tracing::info!("Hello, acta!");
+    tracing::debug!(user = "alice", "User logged in");
+
+    Ok(())
+}
+```
+
+Or use the prelude for convenience:
+
+```rust
+use acta::prelude::*;
+
+fn main() -> Result<()> {
+    let _guard = init(Config::default())?;
 
     tracing::info!("Hello, acta!");
     tracing::debug!(user = "alice", "User logged in");
@@ -43,7 +60,7 @@ Keep the returned guard alive for as long as logging is needed. Dropping it stop
 | Feature        | Enabled by default | Description                                                                                              |
 | -------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
 | `unicode`      | Yes                | Uses the Unicode icon set unless `nerd` selects Nerd Font icons.                                         |
-| `file`         | Yes                | Enables `init_tracing`, `TracingGuard`, `build_file_layer`, and file logging through `tracing-appender`. |
+| `file`         | Yes                | Enables `init`, `TracingGuard`, `build_file_layer`, and file logging through `tracing-appender`. |
 | `compress`     | No                 | Enables `Rotation::Compress` for gzip-compressing old log files.                                         |
 | `serde`        | No                 | Adds `Serialize` / `Deserialize` support for config types.                                               |
 | `nerd`         | No                 | Enables Nerd Font icons through `Icons::nerd()` and uses them by default.                                |
@@ -51,11 +68,11 @@ Keep the returned guard alive for as long as logging is needed. Dropping it stop
 | `native-async` | No                 | Enables non-blocking console writers backed by `tracing-appender`.                                       |
 | `async`        | No                 | Enables both `custom-async` and `native-async`.                                                          |
 
-If you disable default features, `init_tracing` is unavailable unless the `file` feature is enabled.
+If you disable default features, `init` is unavailable unless the `file` feature is enabled.
 
 ## Configuration
 
-`LoggingConfig::default()` uses:
+`Config::default()` uses:
 
 - **Level**: `Level::Info`
 - **Console**: enabled with `Format::Compact`
@@ -66,13 +83,13 @@ If you disable default features, `init_tracing` is unavailable unless the `file`
 
 ```rust
 use acta::{
-    init_tracing, ConsoleConfig, Format, Level, LoggingConfig, Result, Writer,
+    init, Console, Format, Level, Config, Result, Writer,
 };
 
 fn main() -> Result<()> {
-    let config = LoggingConfig {
+    let config = Config {
         level: Level::Debug,
-        console: Some(ConsoleConfig {
+        console: Some(Console {
             format: Format::Compact,
             ansi: true,
             writer: Writer::Stdout,
@@ -84,7 +101,7 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let _guard = init_tracing(&config)?;
+    let _guard = init(config)?;
 
     Ok(())
 }
@@ -105,22 +122,22 @@ events.
 
 ```rust
 use acta::{
-    init_tracing, ConsoleConfig, FileConfig, Level, LoggingConfig, Result, Rotation,
+    init, Console, File, Level, Config, Result, Rotation,
 };
 use std::path::PathBuf;
 
 fn main() -> Result<()> {
-    let config = LoggingConfig {
+    let config = Config {
         level: Level::Info,
-        console: Some(ConsoleConfig::default()),
-        file: Some(FileConfig {
+        console: Some(Console::default()),
+        file: Some(File {
             path: PathBuf::from("logs/app.log"),
             rotation: Rotation::Rename,
         }),
         ..Default::default()
     };
 
-    let _guard = init_tracing(&config)?;
+    let _guard = init(config)?;
 
     Ok(())
 }
@@ -139,9 +156,9 @@ Supported rotation modes:
 acta uses `tracing-subscriber` `EnvFilter` directive syntax for startup filters and runtime reloads.
 
 ```rust
-use acta::{Level, LoggingConfig};
+use acta::{Level, Config};
 
-let config = LoggingConfig {
+let config = Config {
     level: Level::Custom("info,my_crate=debug,my_crate::db=trace".to_owned()),
     ..Default::default()
 };
@@ -150,10 +167,10 @@ let config = LoggingConfig {
 You can change filters after initialization through `ReloadHandle`.
 
 ```rust
-use acta::{init_tracing, Filter, Level, LoggingConfig, Result};
+use acta::{init, Filter, Level, Config, Result};
 
 fn main() -> Result<()> {
-    let guard = init_tracing(&LoggingConfig::default())?;
+    let guard = init(Config::default())?;
 
     guard.reload_handle_mut().set_level(Level::Debug)?;
     guard
@@ -172,10 +189,10 @@ fn main() -> Result<()> {
 `RUST_LOG` is not read automatically. If you want to use it, pass its value into `Level::Custom`.
 
 ```rust
-use acta::{Level, LoggingConfig};
+use acta::{Level, Config};
 
 let directive = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-let config = LoggingConfig {
+let config = Config {
     level: Level::Custom(directive),
     ..Default::default()
 };
@@ -183,12 +200,12 @@ let config = LoggingConfig {
 
 ## Custom formatter
 
-`AnsiFormatter` powers `Format::Compact` and can be customized through builder methods.
+`Formatter` powers `Format::Compact` and can be customized through builder methods.
 
 ```rust
-use acta::{AnsiFormatter, Icons, LevelLabels, Theme};
+use acta::{Formatter, Icons, LevelLabels, Theme};
 
-let formatter = AnsiFormatter::new()
+let formatter = Formatter::new()
     .with_theme(Theme::tokyo_night())
     .with_icons(Icons::unicode())
     .with_labels(LevelLabels::long())
@@ -258,22 +275,22 @@ let custom_labels = LevelLabels::custom("ERR", "WRN", "INF", "DBG", "TRC");
 
 ## Runtime style reload
 
-`ReloadHandle` can reload themes, icons, and labels via `with_style`. `init_tracing` configures runtime filter
+`ReloadHandle` can reload themes, icons, and labels via `with_style`. `init` configures runtime filter
 reloads, but not runtime style reloads.
 
 For style reloads, build the subscriber manually:
 
 ```rust
 use acta::{
-    build_console_layer_with, build_reload_filter, AnsiFormatter, ConsoleConfig, Level, Result,
+    build_console_layer_with, build_reload_filter, Formatter, Console, Level, Result,
     Theme,
 };
 use tracing_subscriber::prelude::*;
 
 fn main() -> Result<()> {
-    let formatter = AnsiFormatter::new().with_theme(Theme::monokai());
+    let formatter = Formatter::new().with_theme(Theme::monokai());
     let style = *formatter.style_config();
-    let console_layer = build_console_layer_with(&ConsoleConfig::default(), &formatter);
+    let console_layer = build_console_layer_with(&Console::default(), &formatter);
     let (filter_layer, mut reload_handle) = build_reload_filter(Level::Info, style);
 
     let subscriber = tracing_subscriber::registry()
@@ -298,20 +315,20 @@ add Tokio as a direct dependency with the required runtime and macro features.
 
 ```rust
 use acta::{
-    init_tracing, AsyncMode, ConsoleConfig, LoggingConfig, Result, Writer,
+    init, AsyncMode, Console, Config, Result, Writer,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = LoggingConfig {
-        console: Some(ConsoleConfig {
+    let config = Config {
+        console: Some(Console {
             writer: Writer::AsyncStdout(AsyncMode::Custom),
             ..Default::default()
         }),
         ..Default::default()
     };
 
-    let _guard = init_tracing(&config)?;
+    let _guard = init(config)?;
 
     Ok(())
 }
