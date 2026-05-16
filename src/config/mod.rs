@@ -366,7 +366,7 @@ impl Filter {
         }
     }
 
-    pub fn level(&self) -> &Level {
+    pub const fn level(&self) -> &Level {
         &self.level
     }
 
@@ -432,7 +432,7 @@ impl File {
             rotation: Rotation::default(),
         }
     }
-    pub fn with_rotation(mut self, rotation: Rotation) -> Self {
+    pub const fn with_rotation(mut self, rotation: Rotation) -> Self {
         self.rotation = rotation;
         self
     }
@@ -474,6 +474,7 @@ pub enum AsyncMode {
 }
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
+#[allow(clippy::derivable_impls)]
 impl Default for AsyncMode {
     fn default() -> Self {
         #[cfg(feature = "custom-async")]
@@ -542,23 +543,23 @@ pub struct ConsoleBuilder {
 }
 
 impl ConsoleBuilder {
-    pub fn format(mut self, format: Format) -> Self {
+    pub const fn format(mut self, format: Format) -> Self {
         self.format = Some(format);
         self
     }
-    pub fn ansi(mut self, ansi: bool) -> Self {
+    pub const fn ansi(mut self, ansi: bool) -> Self {
         self.ansi = Some(ansi);
         self
     }
-    pub fn writer(mut self, writer: Writer) -> Self {
+    pub const fn writer(mut self, writer: Writer) -> Self {
         self.writer = Some(writer);
         self
     }
-    pub fn show_path(mut self, show: bool) -> Self {
+    pub const fn show_path(mut self, show: bool) -> Self {
         self.show_path = Some(show);
         self
     }
-    pub fn show_spans(mut self, show: bool) -> Self {
+    pub const fn show_spans(mut self, show: bool) -> Self {
         self.show_spans = Some(show);
         self
     }
@@ -626,6 +627,7 @@ impl Default for Config {
 
 #[derive(Default, Debug)]
 #[must_use]
+#[allow(clippy::module_name_repetitions)]
 pub struct ConfigBuilder {
     level: Option<Level>,
     console: Option<Console>,

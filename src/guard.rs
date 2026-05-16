@@ -8,6 +8,7 @@ use crate::writer::LogHandle;
 
 #[must_use = "dropping TracingGuard will release associated resources"]
 #[derive(Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct TracingGuard {
     #[cfg(feature = "file")]
     #[allow(dead_code)]

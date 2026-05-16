@@ -8,6 +8,7 @@ use crate::config::{File, Rotation};
 pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
 
 #[derive(Clone, Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct FileWriter {
     writer: tracing_appender::non_blocking::NonBlocking,
 }
@@ -43,6 +44,7 @@ pub fn build_file_layer(file_config: &File) -> Result<(FileWriter, LogHandle, Pa
     Ok((FileWriter::new(non_blocking), guard, path))
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub fn rotate_log_file(path: &Path, mode: Rotation) -> Result<()> {
     if !path.exists() {
         return Ok(());
