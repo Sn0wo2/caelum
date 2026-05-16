@@ -620,7 +620,6 @@ impl Default for Config {
         Self {
             level: Level::Info,
             console: Some(Console::default()),
-            #[cfg(feature = "file")]
             file: None,
         }
     }
@@ -655,7 +654,6 @@ impl ConfigBuilder {
         Config {
             level: self.level.unwrap_or(defaults.level),
             console: self.console.or(defaults.console),
-            #[cfg(feature = "file")]
             file: self.file.or(defaults.file),
         }
     }
