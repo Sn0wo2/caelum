@@ -7,7 +7,6 @@ use crate::config::{Filter, Level};
 
 pub type FmtLayer = Box<dyn tracing_subscriber::Layer<tracing_subscriber::Registry> + Send + Sync>;
 
-
 pub(crate) type InnerSubscriber = Layered<FmtLayer, tracing_subscriber::Registry>;
 
 pub(crate) type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, InnerSubscriber>;
@@ -48,7 +47,11 @@ impl ReloadHandle {
         self.apply_current_filter()
     }
 
-    pub fn set_target_level(&mut self, target: impl Into<String>, level: impl Into<Level>) -> Result<()> {
+    pub fn set_target_level(
+        &mut self,
+        target: impl Into<String>,
+        level: impl Into<Level>,
+    ) -> Result<()> {
         let target = target.into();
         self.filter.set_target(target, level);
         self.apply_current_filter()

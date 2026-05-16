@@ -6,8 +6,8 @@ use tracing_subscriber::prelude::*;
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 use crate::config::AsyncMode;
-use crate::config::{Console, Filter, Format, Writer};
 use crate::config::{Config, Style};
+use crate::config::{Console, Filter, Format, Writer};
 use crate::fmt::Formatter;
 use crate::reload::{FmtLayer, InnerSubscriber, ReloadHandle};
 
@@ -228,9 +228,7 @@ pub fn build_subscriber(config: &Config) -> crate::Result<SubscriberParts> {
     };
 
     tracing::subscriber::set_global_default(subscriber)?;
-    Ok(SubscriberParts {
-        reload_handle,
-    })
+    Ok(SubscriberParts { reload_handle })
 }
 
 #[cfg(feature = "file")]

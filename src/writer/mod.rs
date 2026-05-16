@@ -20,6 +20,6 @@ pub use native::{NativeAsyncWriter, native_async_writer};
 #[cfg(feature = "file")]
 pub mod file;
 
+pub use file::resolve_log_path;
 #[cfg(feature = "file")]
 pub use file::{FileWriter, LogHandle, build_file_layer, rotate_log_file};
-pub use file::resolve_log_path;

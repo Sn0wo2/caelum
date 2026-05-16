@@ -30,9 +30,7 @@ pub use config::AsyncMode;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use writer::AsyncWriterTarget;
 
-pub use config::{
-    Config, Console, File, Filter, Format, Level, Rotation, Writer,
-};
+pub use config::{Config, Console, File, Filter, Format, Level, Rotation, Writer};
 
 #[cfg(feature = "file")]
 pub use crate::writer::{FileWriter, LogHandle, resolve_log_path, rotate_log_file};

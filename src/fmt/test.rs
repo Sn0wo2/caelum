@@ -355,7 +355,10 @@ fn theme_all_have_distinct_accent_colors() {
     ];
     for i in 0..themes.len() {
         for j in (i + 1)..themes.len() {
-            assert_ne!(format!("{:?}", themes[i].accent), format!("{:?}", themes[j].accent));
+            assert_ne!(
+                format!("{:?}", themes[i].accent),
+                format!("{:?}", themes[j].accent)
+            );
         }
     }
 }
