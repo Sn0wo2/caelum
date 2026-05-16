@@ -3,10 +3,10 @@
 all: check
 
 fmt:
-	cargo fmt --all
+	pwsh scripts/fmt.ps1
 
 fmt-check:
-	cargo fmt --all -- --check
+	pwsh scripts/fmt.ps1 -Check
 
 clippy:
 	cargo clippy --all-features -- -D warnings
