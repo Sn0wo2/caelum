@@ -654,7 +654,10 @@ impl ConfigBuilder {
         Config {
             level: self.level.unwrap_or(defaults.level),
             console: self.console.or(defaults.console),
+            #[cfg(feature = "file")]
             file: self.file.or(defaults.file),
+            #[cfg(not(feature = "file"))]
+            file: None,
         }
     }
 }
