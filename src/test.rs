@@ -1,4 +1,7 @@
+use std::io;
+
 use super::*;
+use crate::reload::build_reload_filter_for_test as build_reload_filter;
 
 #[test]
 fn build_console_layer_all_variants() {
@@ -7,14 +10,14 @@ fn build_console_layer_all_variants() {
 
     for format in &formats {
         for writer in &writers {
-            let cfg = ConsoleConfig {
+            let cfg = Console {
                 format: format.clone(),
                 writer: writer.clone(),
                 ansi: true,
                 show_path: true,
                 show_spans: true,
                 time_format: None,
-                style: StyleConfig::default(),
+                style: Style::default(),
             };
             let _layer = build_console_layer(&cfg);
         }
@@ -23,7 +26,7 @@ fn build_console_layer_all_variants() {
 
 #[test]
 fn build_console_layer_no_ansi() {
-    let cfg = ConsoleConfig {
+    let cfg = Console {
         ansi: false,
         ..Default::default()
     };
@@ -32,7 +35,7 @@ fn build_console_layer_no_ansi() {
 
 #[test]
 fn build_console_layer_custom_time() {
-    let cfg = ConsoleConfig {
+    let cfg = Console {
         time_format: Some(String::from("%Y/%m/%d")),
         ..Default::default()
     };
@@ -42,8 +45,8 @@ fn build_console_layer_custom_time() {
 #[cfg(feature = "nerd")]
 #[test]
 fn build_console_layer_with_nerd_icons() {
-    let cfg = ConsoleConfig::default();
-    let formatter = AnsiFormatter::new().with_icons(Icons::nerd());
+    let cfg = Console::default();
+    let formatter = Formatter::new().with_icons(Icons::nerd());
     let _layer = build_console_layer_with(&cfg, &formatter);
 }
 
@@ -55,7 +58,7 @@ fn build_file_layer_creates_dirs() {
     let nested = dir.join("a").join("b");
     let log_path = nested.join("app.log");
 
-    let result = build_file_layer(&FileConfig {
+    let result = build_file_layer(&File {
         path: log_path,
         rotation: Rotation::None,
     });
@@ -69,8 +72,10 @@ fn build_file_layer_creates_dirs() {
 
 #[test]
 fn build_reload_filter_works() {
-    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
-    assert!(handle.set_level(Level::Debug).is_ok());
+    let (_layer, mut handle, _subscriber) =
+        build_reload_filter(Level::Info, Style::default());
+    let result = handle.set_level(Level::Debug);
+    assert!(result.is_ok(), "set_level failed: {:?}", result);
     assert!(handle.set_target_level("my_crate", Level::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());
     assert!(handle.reload("info,my_crate=trace").is_ok());
@@ -84,6 +89,7 @@ fn build_reload_filter_works() {
 #[cfg(feature = "file")]
 #[test]
 fn resolve_log_path_new_file() {
+    use crate::writer::file::resolve_log_path;
     let dir = std::env::temp_dir().join("acta-test-resolve");
     drop(std::fs::remove_dir_all(&dir));
     drop(std::fs::create_dir_all(&dir));
@@ -98,6 +104,7 @@ fn resolve_log_path_new_file() {
 #[cfg(feature = "file")]
 #[test]
 fn resolve_log_path_fallback_when_parent_is_file() {
+    use crate::writer::file::resolve_log_path;
     let dir = std::env::temp_dir().join("acta-test-resolve-fallback");
     drop(std::fs::remove_dir_all(&dir));
     drop(std::fs::create_dir_all(&dir));
@@ -124,8 +131,8 @@ fn resolve_log_path_fallback_when_parent_is_file() {
 
 #[test]
 fn reload_handle_with_style_config() {
-    let style = StyleConfig::default();
-    let (_layer, mut handle) = build_reload_filter(Level::Info, style);
+    let style = Style::default();
+    let (_layer, mut handle, _subscriber) = build_reload_filter(Level::Info, style);
     handle.with_style(|s| s.theme = Theme::dracula());
     handle.with_style(|s| s.icons = Icons::unicode());
     handle.with_style(|s| s.labels = LevelLabels::short());
@@ -133,14 +140,16 @@ fn reload_handle_with_style_config() {
 
 #[test]
 fn reload_handle_set_target_level_accepts_string() {
-    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
+    let (_layer, mut handle, _subscriber) =
+        build_reload_filter(Level::Info, Style::default());
     let target = String::from("my_crate");
     assert!(handle.set_target_level(target, Level::Trace).is_ok());
 }
 
 #[test]
 fn reload_handle_remove_nonexistent_target_level() {
-    let (_layer, mut handle) = build_reload_filter(Level::Info, StyleConfig::default());
+    let (_layer, mut handle, _subscriber) =
+        build_reload_filter(Level::Info, Style::default());
     assert!(handle.remove_target_level("nonexistent_crate").is_ok());
 }
 
