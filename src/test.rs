@@ -134,7 +134,7 @@ fn reload_handle_with_style_config() {
     let (_layer, mut handle, _subscriber) = build_reload_filter(Level::Info, style);
     handle.with_style(|s| s.theme = Theme::dracula());
     handle.with_style(|s| s.icons = Icons::unicode());
-    handle.with_style(|s| s.labels = LevelLabels::short());
+    handle.with_style(|s| s.labels = LevelLabels::SHORT);
 }
 
 #[test]

@@ -53,8 +53,7 @@ impl ReloadHandle {
         target: impl Into<String>,
         level: impl Into<Level>,
     ) -> Result<()> {
-        let target = target.into();
-        self.filter.set_target(target, level);
+        self.filter.with_target(target, level);
         self.apply_current_filter()
     }
 

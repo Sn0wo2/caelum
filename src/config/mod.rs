@@ -1,6 +1,7 @@
 #[cfg(feature = "nerd")]
 use nerd_font_symbols::{cod, fa, ple};
 use owo_colors::Style as OwoStyle;
+use smart_default::SmartDefault;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -30,29 +31,27 @@ impl LevelLabels {
             trace,
         }
     }
-    pub const fn short() -> Self {
-        Self {
-            error: "E",
-            warn: "W",
-            info: "I",
-            debug: "D",
-            trace: "T",
-        }
-    }
-    pub const fn long() -> Self {
-        Self {
-            error: "ERROR",
-            warn: " WARN",
-            info: " INFO",
-            debug: "DEBUG",
-            trace: "TRACE",
-        }
-    }
+
+    pub const DEFAULT: Self = Self {
+        error: "ERROR",
+        warn: " WARN",
+        info: " INFO",
+        debug: "DEBUG",
+        trace: "TRACE",
+    };
+
+    pub const SHORT: Self = Self {
+        error: "E",
+        warn: "W",
+        info: "I",
+        debug: "D",
+        trace: "T",
+    };
 }
 
 impl Default for LevelLabels {
     fn default() -> Self {
-        Self::short()
+        Self::SHORT
     }
 }
 
@@ -93,32 +92,30 @@ impl Icons {
         }
     }
 
-    pub const fn unicode() -> Self {
-        Self {
-            bracket_open: "[",
-            bracket_close: "]",
-            time_bracket_open: "\u{300c}",
-            time_bracket_close: "\u{300d}",
-            separator: "\u{2507}",
-            arrow: ">",
-            span_delimiter: "->",
-            span_join: "\u{00bb}",
-        }
-    }
+    pub const UNICODE: Self = Self {
+        #[rustfmt::skip] // 让下面两个括号可以对齐
+        bracket_open:  "[",
+        bracket_close: "]",
+        #[rustfmt::skip] // ↑
+        time_bracket_open:  "｢",
+        time_bracket_close: "｣",
+        separator: "┇", // \u{2507}
+        arrow: ">",
+        span_delimiter: "->",
+        span_join: "»", // \u{00bb}
+    };
 
     #[cfg(feature = "nerd")]
-    pub const fn nerd() -> Self {
-        Self {
-            bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THICK,
-            bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THICK,
-            time_bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THIN,
-            time_bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THIN,
-            separator: "\u{2507}",
-            arrow: fa::FA_CARET_RIGHT,
-            span_delimiter: cod::COD_EXPORT,
-            span_join: fa::FA_ANGLES_RIGHT,
-        }
-    }
+    pub const NERD: Self = Self {
+        bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THICK,
+        bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THICK,
+        time_bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THIN,
+        time_bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THIN,
+        separator: "┇", // \u{2507}
+        arrow: fa::FA_CARET_RIGHT,
+        span_delimiter: cod::COD_EXPORT,
+        span_join: fa::FA_ANGLES_RIGHT,
+    };
 
     pub fn is_nerd(&self) -> bool {
         self.bracket_open != "["
@@ -129,11 +126,11 @@ impl Default for Icons {
     fn default() -> Self {
         #[cfg(feature = "nerd")]
         {
-            Self::nerd()
+            Self::NERD
         }
         #[cfg(not(feature = "nerd"))]
         {
-            Self::unicode()
+            Self::UNICODE
         }
     }
 }
@@ -155,7 +152,7 @@ pub struct Theme {
 
 impl Theme {
     #[allow(clippy::too_many_arguments, clippy::missing_const_for_fn)]
-    pub fn new(
+    pub const fn new(
         accent: Rgb,
         secondary: Rgb,
         text: Rgb,
@@ -176,108 +173,140 @@ impl Theme {
             trace,
         }
     }
+    /// ACTA (default).
+    ///
+    /// light blue, pink, white, bright red, gold, off white
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // 让下面的颜色对齐
+    pub const fn acta() -> Self {
+        const LIGHT_BLUE:  Rgb = (91, 206, 250);  // #5BCEFA
+        const PINK:        Rgb = (245, 169, 184); // #F5A9B8
+        const WHITE:       Rgb = (255, 255, 255); // #FFFFFF
+        const BRIGHT_RED:  Rgb = (255, 85, 85);   // #FF5555
+        const GOLD:        Rgb = (255, 200, 60);  // #FFC83C
+        const OFF_WHITE:   Rgb = (240, 240, 240); // #F0F0F0
 
-    pub fn trans_flag() -> Self {
         Self::new(
-            (91, 206, 250),
-            (245, 169, 184),
-            (255, 255, 255),
-            (255, 85, 85),
-            (255, 200, 60),
-            (91, 206, 250),
-            (245, 169, 184),
-            (240, 240, 240),
+            LIGHT_BLUE, PINK, WHITE, BRIGHT_RED, GOLD, LIGHT_BLUE, PINK, OFF_WHITE,
         )
     }
-    pub fn monokai() -> Self {
-        Self::new(
-            (102, 217, 239),
-            (249, 38, 114),
-            (248, 248, 242),
-            (255, 85, 85),
-            (255, 200, 60),
-            (102, 217, 239),
-            (249, 38, 114),
-            (180, 180, 180),
-        )
+
+    /// Monokai.
+    ///
+    /// cyan, pink, white, bright red, gold, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn monokai() -> Self {
+        const CYAN:       Rgb = (102, 217, 239);  // #66D9EF
+        const PINK:       Rgb = (249, 38, 114);   // #F92672
+        const WHITE:      Rgb = (248, 248, 242);  // #F8F8F2
+        const BRIGHT_RED: Rgb = (255, 85, 85);    // #FF5555
+        const GOLD:       Rgb = (255, 200, 60);   // #FFC83C
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(CYAN, PINK, WHITE, BRIGHT_RED, GOLD, CYAN, PINK, GRAY)
     }
-    pub fn dracula() -> Self {
-        Self::new(
-            (139, 233, 253),
-            (255, 121, 198),
-            (248, 248, 242),
-            (255, 85, 85),
-            (255, 200, 60),
-            (139, 233, 253),
-            (255, 121, 198),
-            (180, 180, 180),
-        )
+
+    /// Dracula.
+    ///
+    /// cyan, pink, white, bright red, gold, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn dracula() -> Self {
+        const CYAN:       Rgb = (139, 233, 253);  // #8BE9FD
+        const PINK:       Rgb = (255, 121, 198);  // #FF79C6
+        const WHITE:      Rgb = (248, 248, 242);  // #F8F8F2
+        const BRIGHT_RED: Rgb = (255, 85, 85);    // #FF5555
+        const GOLD:       Rgb = (255, 200, 60);   // #FFC83C
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(CYAN, PINK, WHITE, BRIGHT_RED, GOLD, CYAN, PINK, GRAY)
     }
-    pub fn nord() -> Self {
-        Self::new(
-            (136, 192, 208),
-            (163, 190, 140),
-            (216, 222, 233),
-            (191, 97, 106),
-            (235, 203, 139),
-            (136, 192, 208),
-            (163, 190, 140),
-            (180, 180, 180),
-        )
+
+    /// Nord.
+    ///
+    /// blue, green, white, red, yellow, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn nord() -> Self {
+        const BLUE:       Rgb = (136, 192, 208);  // #88C0D0
+        const GREEN:      Rgb = (163, 190, 140);  // #A3BE8C
+        const WHITE:      Rgb = (216, 222, 233);  // #D8DEE9
+        const RED:        Rgb = (191, 97, 106);   // #BF616A
+        const YELLOW:     Rgb = (235, 203, 139);  // #EBCB8B
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(BLUE, GREEN, WHITE, RED, YELLOW, BLUE, GREEN, GRAY)
     }
-    pub fn catppuccin_mocha() -> Self {
-        Self::new(
-            (137, 180, 250),
-            (203, 166, 247),
-            (205, 214, 244),
-            (243, 139, 168),
-            (249, 226, 175),
-            (137, 180, 250),
-            (203, 166, 247),
-            (180, 180, 180),
-        )
+
+    /// Catppuccin Mocha.
+    ///
+    /// blue, mauve, text, red, yellow, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn catppuccin_mocha() -> Self {
+        const BLUE:       Rgb = (137, 180, 250);  // #89B4FA
+        const MAUVE:      Rgb = (203, 166, 247);  // #CBA6F7
+        const TEXT:       Rgb = (205, 214, 244);  // #CDD6F4
+        const RED:        Rgb = (243, 139, 168);  // #F38BA8
+        const YELLOW:     Rgb = (249, 226, 175);  // #F9E2AF
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(BLUE, MAUVE, TEXT, RED, YELLOW, BLUE, MAUVE, GRAY)
     }
-    pub fn gruvbox() -> Self {
-        Self::new(
-            (131, 165, 152),
-            (254, 128, 25),
-            (235, 219, 178),
-            (251, 73, 52),
-            (250, 189, 47),
-            (131, 165, 152),
-            (254, 128, 25),
-            (180, 180, 180),
-        )
+
+    /// Gruvbox.
+    ///
+    /// aqua, orange, light, red, yellow, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn gruvbox() -> Self {
+        const AQUA:       Rgb = (131, 165, 152);  // #83A598
+        const ORANGE:     Rgb = (254, 128, 25);   // #FE8019
+        const LIGHT:      Rgb = (235, 219, 178);  // #EBDBB2
+        const RED:        Rgb = (251, 73, 52);    // #FB4934
+        const YELLOW:     Rgb = (250, 189, 47);   // #FABD2F
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(AQUA, ORANGE, LIGHT, RED, YELLOW, AQUA, ORANGE, GRAY)
     }
-    pub fn one_dark() -> Self {
-        Self::new(
-            (97, 175, 239),
-            (198, 120, 221),
-            (171, 178, 191),
-            (224, 108, 117),
-            (229, 192, 123),
-            (97, 175, 239),
-            (198, 120, 221),
-            (180, 180, 180),
-        )
+
+    /// One Dark.
+    ///
+    /// blue, purple, white, red, yellow, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn one_dark() -> Self {
+        const BLUE:       Rgb = (97, 175, 239);   // #61AFEF
+        const PURPLE:     Rgb = (198, 120, 221);  // #C678DD
+        const WHITE:      Rgb = (171, 178, 191);  // #ABB2BF
+        const RED:        Rgb = (224, 108, 117);  // #E06C75
+        const YELLOW:     Rgb = (229, 192, 123);  // #E5C07B
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(BLUE, PURPLE, WHITE, RED, YELLOW, BLUE, PURPLE, GRAY)
     }
-    pub fn tokyo_night() -> Self {
-        Self::new(
-            (122, 162, 247),
-            (187, 154, 247),
-            (192, 202, 245),
-            (247, 118, 142),
-            (224, 175, 104),
-            (122, 162, 247),
-            (187, 154, 247),
-            (180, 180, 180),
-        )
+
+    /// Tokyo Night.
+    ///
+    /// blue, purple, white, red, yellow, gray
+    /// with some dimmed for terminal readability.
+    #[rustfmt::skip] // ↑
+    pub const fn tokyo_night() -> Self {
+        const BLUE:       Rgb = (122, 162, 247);  // #7AA2F7
+        const PURPLE:     Rgb = (187, 154, 247);  // #BB9AF7
+        const WHITE:      Rgb = (192, 202, 245);  // #C0CAF5
+        const RED:        Rgb = (247, 118, 142);  // #F7768E
+        const YELLOW:     Rgb = (224, 175, 104);  // #E0AF68
+        const GRAY:       Rgb = (180, 180, 180);  // #B4B4B4
+
+        Self::new(BLUE, PURPLE, WHITE, RED, YELLOW, BLUE, PURPLE, GRAY)
     }
 }
 
 impl Default for Theme {
     fn default() -> Self {
-        Self::trans_flag()
+        Self::acta()
     }
 }
 
@@ -354,7 +383,9 @@ impl Level {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Filter {
+    /// default level for all targets if not specified
     level: Level,
+
     targets: HashMap<String, Level>,
 }
 
@@ -370,13 +401,9 @@ impl Filter {
         &self.level
     }
 
-    pub fn with_target(mut self, target: impl Into<String>, level: impl Into<Level>) -> Self {
-        self.set_target(target, level);
-        self
-    }
-
-    pub fn set_target(&mut self, target: impl Into<String>, level: impl Into<Level>) {
+    pub fn with_target(&mut self, target: impl Into<String>, level: impl Into<Level>) -> &mut Self {
         self.targets.insert(target.into(), level.into());
+        self
     }
 
     pub fn remove_target(&mut self, target: &str) -> bool {
@@ -429,7 +456,7 @@ impl File {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
-            rotation: Rotation::default(),
+            ..Default::default()
         }
     }
     pub const fn with_rotation(mut self, rotation: Rotation) -> Self {
@@ -489,21 +516,32 @@ impl Default for AsyncMode {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, SmartDefault)]
 #[non_exhaustive]
 pub struct Console {
     pub format: Format,
-    #[cfg_attr(feature = "serde", serde(default = "default_true"))]
-    pub ansi: bool,
+
     #[cfg_attr(feature = "serde", serde(default))]
+    #[default(true)]
+    pub ansi: bool,
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    #[default(Writer::default())]
     pub writer: Writer,
-    #[cfg_attr(feature = "serde", serde(default = "default_true"))]
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    #[default(true)]
     pub show_path: bool,
-    #[cfg_attr(feature = "serde", serde(default = "default_true"))]
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    #[default(true)]
     pub show_spans: bool,
+
     #[cfg_attr(feature = "serde", serde(default))]
     pub time_format: Option<String>,
+
     #[cfg_attr(feature = "serde", serde(skip))]
+    #[default(Style::default())]
     pub style: Style,
 }
 
@@ -511,22 +549,9 @@ impl Console {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn builder() -> ConsoleBuilder {
         ConsoleBuilder::default()
-    }
-}
-
-impl Default for Console {
-    fn default() -> Self {
-        Self {
-            format: Format::default(),
-            ansi: true,
-            writer: Writer::default(),
-            show_path: true,
-            show_spans: true,
-            time_format: None,
-            style: Style::default(),
-        }
     }
 }
 
@@ -547,30 +572,37 @@ impl ConsoleBuilder {
         self.format = Some(format);
         self
     }
+
     pub const fn ansi(mut self, ansi: bool) -> Self {
         self.ansi = Some(ansi);
         self
     }
+
     pub const fn writer(mut self, writer: Writer) -> Self {
         self.writer = Some(writer);
         self
     }
+
     pub const fn show_path(mut self, show: bool) -> Self {
         self.show_path = Some(show);
         self
     }
+
     pub const fn show_spans(mut self, show: bool) -> Self {
         self.show_spans = Some(show);
         self
     }
+
     pub fn time_format(mut self, fmt: impl Into<String>) -> Self {
         self.time_format = Some(fmt.into());
         self
     }
+
     pub fn style(mut self, style: impl Into<Style>) -> Self {
         self.style = Some(style.into());
         self
     }
+
     pub fn build(self) -> Console {
         let defaults = Console::default();
         Console {
@@ -603,13 +635,6 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(level: impl Into<Level>) -> Self {
-        Self {
-            level: level.into(),
-            console: Some(Console::default()),
-            file: None,
-        }
-    }
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
     }
@@ -640,15 +665,18 @@ impl ConfigBuilder {
         self.level = Some(level.into());
         self
     }
+
     pub fn console(mut self, console: impl Into<Console>) -> Self {
         self.console = Some(console.into());
         self
     }
+
     #[cfg(feature = "file")]
     pub fn file(mut self, file: impl Into<File>) -> Self {
         self.file = Some(file.into());
         self
     }
+
     pub fn build(self) -> Config {
         let defaults = Config::default();
         Config {

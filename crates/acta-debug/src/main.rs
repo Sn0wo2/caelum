@@ -13,7 +13,7 @@ const SECTION_WIDTH: usize = 64;
 
 static THEMES: LazyLock<SmallVec<[(&'static str, Theme); 8]>> = LazyLock::new(|| {
     smallvec![
-        ("trans_flag", Theme::trans_flag()),
+        ("trans_flag", Theme::acta()),
         ("monokai", Theme::monokai()),
         ("dracula", Theme::dracula()),
         ("nord", Theme::nord()),
@@ -98,7 +98,7 @@ fn main() {
     log!(sub, "Compact + Unicode icons");
     {
         let console = Console::default();
-        let formatter = Formatter::new().with_icons(Icons::unicode());
+        let formatter = Formatter::new().with_icons(Icons::UNICODE);
         let layer = build_console_layer_with(&console, &formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("unicode"));
@@ -116,7 +116,7 @@ fn main() {
     log!(sub, "Compact + Nerd Font icons");
     {
         let console = Console::default();
-        let formatter = Formatter::new().with_icons(Icons::nerd());
+        let formatter = Formatter::new().with_icons(Icons::NERD);
         let layer = build_console_layer_with(&console, &formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("nerd"));
@@ -237,11 +237,11 @@ fn main() {
     );
     {
         let short_fmt = Formatter::new()
-            .with_labels(LevelLabels::short())
+            .with_labels(LevelLabels::SHORT)
             .with_show_path(false)
             .with_show_spans(false);
         let long_fmt = Formatter::new()
-            .with_labels(LevelLabels::long())
+            .with_labels(LevelLabels::DEFAULT)
             .with_show_path(false)
             .with_show_spans(false);
 
@@ -369,8 +369,8 @@ fn main() {
     {
         let console = Console::default();
         let fmt: Formatter = Formatter::new()
-            .with_icons(Icons::unicode())
-            .with_theme(Theme::trans_flag())
+            .with_icons(Icons::UNICODE)
+            .with_theme(Theme::acta())
             .with_show_path(false)
             .with_show_spans(false);
         let style = fmt.style_config();
@@ -387,12 +387,12 @@ fn main() {
             log!(info, "reload → set_theme(monokai)");
             tracing::info!("theme switched to monokai");
 
-            reload_handle.with_style(|s| s.labels = LevelLabels::long());
-            log!(info, "reload → set_labels(long)");
+            reload_handle.with_style(|s| s.labels = LevelLabels::DEFAULT);
+            log!(info, "reload → set_labels(default)");
             tracing::warn!("labels switched to full-word");
 
             {
-                reload_handle.with_style(|s| s.icons = Icons::nerd());
+                reload_handle.with_style(|s| s.icons = Icons::NERD);
                 log!(info, "reload → set_icons(nerd)");
                 tracing::error!("icons switched to nerd font");
             }
@@ -500,7 +500,7 @@ fn main() {
         drop(std::fs::create_dir_all(&tmp_dir));
         let log_path = tmp_dir.join("test.log");
 
-        let file_config = File::new(log_path.clone()).with_rotation(Rotation::Rename);
+        let file_config = File::new(&log_path).with_rotation(Rotation::Rename);
         log!(
             info,
             &format!("config: {:?}  |  path: {}", file_config, log_path.display())

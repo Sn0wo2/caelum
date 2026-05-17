@@ -38,7 +38,7 @@ fn formatter_with_icons() {
 
 #[test]
 fn theme_presets_are_distinct() {
-    let s1 = format!("{:?}", Theme::trans_flag());
+    let s1 = format!("{:?}", Theme::acta());
     let s2 = format!("{:?}", Theme::monokai());
     let s3 = format!("{:?}", Theme::dracula());
     assert_ne!(s1, s2);
@@ -48,8 +48,8 @@ fn theme_presets_are_distinct() {
 #[test]
 fn theme_default_is_trans_flag() {
     assert_eq!(
-        format!("{:?}", Theme::default()),
-        format!("{:?}", Theme::trans_flag())
+        format!("{:?}", Theme::acta()),
+        format!("{:?}", Theme::acta())
     );
 }
 
@@ -190,12 +190,12 @@ fn formatter_style_config_returns_reference() {
 #[test]
 fn formatter_with_style_config_replaces_all() {
     let config = Style {
-        labels: LevelLabels::short(),
+        labels: LevelLabels::SHORT,
         icons: Icons::unicode(),
         theme: Theme::monokai(),
     };
     let fmt = Formatter::new().with_style_config(config);
-    assert_eq!(fmt.style_config().labels, LevelLabels::short());
+    assert_eq!(fmt.style_config().labels, LevelLabels::SHORT);
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
     assert!((248..=255).contains(&fmt.style_config().theme.error.0));
 }
@@ -205,7 +205,7 @@ fn formatter_with_labels_changes_labels() {
     let fmt = Formatter::new();
     let before = fmt.style_config().labels.error;
 
-    let fmt = fmt.with_labels(LevelLabels::long());
+    let fmt = fmt.with_labels(LevelLabels::SHORT);
     assert_ne!(fmt.style_config().labels.error, before);
     assert_eq!(fmt.style_config().labels.error, "ERROR");
 }
@@ -221,7 +221,7 @@ fn formatter_with_theme_changes_theme() {
     let fmt = Formatter::new().with_theme(Theme::monokai());
     assert_ne!(
         format!("{:?}", fmt.style_config().theme),
-        format!("{:?}", Theme::default())
+        format!("{:?}", Theme::acta())
     );
 }
 
@@ -281,7 +281,7 @@ fn event_visitor_order_preserved_message_extracted() {
 
 #[test]
 fn level_labels_short() {
-    let labels = LevelLabels::short();
+    let labels = LevelLabels::SHORT;
     assert_eq!(labels.error, "E");
     assert_eq!(labels.warn, "W");
     assert_eq!(labels.info, "I");
@@ -291,7 +291,7 @@ fn level_labels_short() {
 
 #[test]
 fn level_labels_long() {
-    let labels = LevelLabels::long();
+    let labels = LevelLabels::DEFAULT;
     assert_eq!(labels.error, "ERROR");
     assert_eq!(labels.warn, " WARN");
     assert_eq!(labels.info, " INFO");
@@ -301,7 +301,7 @@ fn level_labels_long() {
 
 #[test]
 fn level_labels_default_equals_short() {
-    assert_eq!(LevelLabels::default(), LevelLabels::short());
+    assert_eq!(LevelLabels::default(), LevelLabels::SHORT);
 }
 
 #[test]
@@ -332,19 +332,19 @@ fn style_config_default() {
     let config = Style::default();
     assert_eq!(
         format!("{:?}", config.theme),
-        format!("{:?}", Theme::trans_flag())
+        format!("{:?}", Theme::acta())
     );
     #[cfg(feature = "nerd")]
     assert_eq!(config.icons, Icons::nerd());
     #[cfg(not(feature = "nerd"))]
     assert_eq!(config.icons, Icons::unicode());
-    assert_eq!(config.labels, LevelLabels::short());
+    assert_eq!(config.labels, LevelLabels::SHORT);
 }
 
 #[test]
 fn theme_all_have_distinct_accent_colors() {
     let themes = [
-        Theme::trans_flag(),
+        Theme::acta(),
         Theme::monokai(),
         Theme::dracula(),
         Theme::nord(),
@@ -353,11 +353,12 @@ fn theme_all_have_distinct_accent_colors() {
         Theme::one_dark(),
         Theme::tokyo_night(),
     ];
-    for i in 0..themes.len() {
-        for j in (i + 1)..themes.len() {
+
+    for (i, theme_i) in themes.iter().enumerate() {
+        for theme_j in themes.iter().skip(i + 1) {
             assert_ne!(
-                format!("{:?}", themes[i].accent),
-                format!("{:?}", themes[j].accent)
+                format!("{:?}", theme_i.accent),
+                format!("{:?}", theme_j.accent)
             );
         }
     }
@@ -366,7 +367,7 @@ fn theme_all_have_distinct_accent_colors() {
 #[test]
 fn theme_default_equals_trans_flag() {
     assert_eq!(
-        format!("{:?}", Theme::default()),
-        format!("{:?}", Theme::trans_flag())
+        format!("{:?}", Theme::acta()),
+        format!("{:?}", Theme::acta())
     );
 }

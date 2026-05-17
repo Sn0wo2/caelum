@@ -15,12 +15,13 @@ use crate::reload::{FmtLayer, InnerSubscriber, ReloadHandle};
 use crate::writer;
 
 pub fn build_console_layer(console: &Console) -> FmtLayer {
-    let mut formatter = Formatter::new()
+    let mut formatter = 
+    Formatter::new()
         .with_style_config(console.style)
         .with_show_path(console.show_path)
         .with_show_spans(console.show_spans);
     if let Some(tf) = &console.time_format {
-        formatter = formatter.with_time_format(tf.clone());
+        formatter = formatter.with_time_format(tf);
     }
     build_console_layer_with(console, &formatter)
 }
