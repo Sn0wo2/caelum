@@ -9,7 +9,7 @@ pub use crate::builder::{
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use crate::config::AsyncMode;
 pub use crate::config::{Config, Console, File, Icons, LevelLabels, Style, Theme};
-pub use crate::config::{Filter, Format, Level, Rotation, Writer};
+pub use crate::config::{Filter, Format, LayerConfig, Level, Rotation, Writer};
 pub use crate::fmt::Formatter;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use crate::writer::AsyncWriterTarget;

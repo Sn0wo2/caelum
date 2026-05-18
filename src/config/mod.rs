@@ -1,10 +1,22 @@
 #[cfg(feature = "nerd")]
 use nerd_font_symbols::{cod, fa, ple};
-use owo_colors::Style as OwoStyle;
 use smart_default::SmartDefault;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+pub mod depth;
+
+pub use depth::detect;
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ColorDepth {
+    TrueColor,
+    Ansi256,
+    Ansi16,
+    NoColor,
+}
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct LevelLabels {
@@ -124,14 +136,7 @@ impl Icons {
 
 impl Default for Icons {
     fn default() -> Self {
-        #[cfg(feature = "nerd")]
-        {
-            Self::NERD
-        }
-        #[cfg(not(feature = "nerd"))]
-        {
-            Self::UNICODE
-        }
+        Self::UNICODE
     }
 }
 
@@ -140,9 +145,9 @@ type Rgb = (u8, u8, u8);
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub struct Theme {
-    pub accent: OwoStyle,
-    pub secondary: OwoStyle,
-    pub text: OwoStyle,
+    pub accent: Rgb,
+    pub secondary: Rgb,
+    pub text: Rgb,
     pub error: Rgb,
     pub warn: Rgb,
     pub info: Rgb,
@@ -163,9 +168,9 @@ impl Theme {
         trace: Rgb,
     ) -> Self {
         Self {
-            accent: OwoStyle::new().truecolor(accent.0, accent.1, accent.2),
-            secondary: OwoStyle::new().truecolor(secondary.0, secondary.1, secondary.2),
-            text: OwoStyle::new().truecolor(text.0, text.1, text.2),
+            accent,
+            secondary,
+            text,
             error,
             warn,
             info,
@@ -317,16 +322,106 @@ pub struct Style {
     pub icons: Icons,
     pub labels: LevelLabels,
 }
+/// Per-format tracing_subscriber layer configuration.
+///
+/// Controls which metadata fields appear in log output.
+/// Each Format variant (Pretty, Compact, Json) carries its own LayerConfig,
+/// allowing full customization of the underlying layer.
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LayerConfig {
+    /// Show the log target (module path)
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub target: bool,
+    /// Show the source file
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub file: bool,
+    /// Show the line number
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub line_number: bool,
+    /// Show the current span name
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub current_span: bool,
+    /// Show span list (parent spans)
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub span_list: bool,
+    /// Flatten event into a single line (Json only)
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub flatten_event: bool,
+    /// Show thread IDs
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub thread_ids: bool,
+    /// Show thread names
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub thread_names: bool,
+}
+
+impl LayerConfig {
+    /// Default config for Pretty format
+    pub const fn pretty() -> Self {
+        Self {
+            target: true,
+            file: true,
+            line_number: true,
+            current_span: false,
+            span_list: false,
+            flatten_event: false,
+            thread_ids: false,
+            thread_names: false,
+        }
+    }
+
+    /// Default config for Compact format
+    pub const fn compact() -> Self {
+        Self {
+            target: false,
+            file: false,
+            line_number: false,
+            current_span: false,
+            span_list: false,
+            flatten_event: false,
+            thread_ids: false,
+            thread_names: false,
+        }
+    }
+
+    /// Default config for Json format
+    pub const fn json() -> Self {
+        Self {
+            target: false,
+            file: false,
+            line_number: false,
+            current_span: false,
+            span_list: false,
+            flatten_event: true,
+            thread_ids: false,
+            thread_names: false,
+        }
+    }
+}
+
+impl Default for LayerConfig {
+    fn default() -> Self {
+        Self::compact()
+    }
+}
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Format {
-    Pretty,
-    #[default]
-    Compact,
-    Json,
+    Pretty(LayerConfig),
+    Compact(LayerConfig),
+    Json(LayerConfig),
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Self::Pretty(LayerConfig::pretty())
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -526,6 +621,10 @@ pub struct Console {
     pub ansi: bool,
 
     #[cfg_attr(feature = "serde", serde(default))]
+    #[default(None)]
+    pub color_depth: Option<ColorDepth>,
+
+    #[cfg_attr(feature = "serde", serde(default))]
     #[default(Writer::default())]
     pub writer: Writer,
 
@@ -560,6 +659,7 @@ impl Console {
 pub struct ConsoleBuilder {
     format: Option<Format>,
     ansi: Option<bool>,
+    color_depth: Option<ColorDepth>,
     writer: Option<Writer>,
     show_path: Option<bool>,
     show_spans: Option<bool>,
@@ -575,6 +675,11 @@ impl ConsoleBuilder {
 
     pub const fn ansi(mut self, ansi: bool) -> Self {
         self.ansi = Some(ansi);
+        self
+    }
+
+    pub const fn color_depth(mut self, depth: ColorDepth) -> Self {
+        self.color_depth = Some(depth);
         self
     }
 
@@ -605,18 +710,37 @@ impl ConsoleBuilder {
 
     pub fn build(self) -> Console {
         let defaults = Console::default();
+
+        let style = {
+            let mut s = self.style.unwrap_or(defaults.style);
+            #[cfg(feature = "nerd")]
+            {
+                if depth::detect_nerd() {
+                    s.icons = Icons::NERD;
+                }
+            }
+            s
+        };
+
         Console {
             format: self.format.unwrap_or(defaults.format),
             ansi: self.ansi.unwrap_or(defaults.ansi),
+            color_depth: self.color_depth.or(defaults.color_depth).or_else(|| {
+                let writer = self.writer.as_ref().unwrap_or(&defaults.writer);
+                if self.ansi.unwrap_or(defaults.ansi) {
+                    Some(detect(writer))
+                } else {
+                    Some(ColorDepth::NoColor)
+                }
+            }),
             writer: self.writer.unwrap_or(defaults.writer),
             show_path: self.show_path.unwrap_or(defaults.show_path),
             show_spans: self.show_spans.unwrap_or(defaults.show_spans),
             time_format: self.time_format.or(defaults.time_format),
-            style: self.style.unwrap_or(defaults.style),
+            style,
         }
     }
 }
-
 impl From<ConsoleBuilder> for Console {
     fn from(b: ConsoleBuilder) -> Self {
         b.build()
@@ -694,11 +818,6 @@ impl From<ConfigBuilder> for Config {
     fn from(b: ConfigBuilder) -> Self {
         b.build()
     }
-}
-
-#[cfg(feature = "serde")]
-const fn default_true() -> bool {
-    true
 }
 
 #[cfg(feature = "serde")]

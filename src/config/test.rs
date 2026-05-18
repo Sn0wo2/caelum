@@ -8,7 +8,7 @@ fn config_default() {
     assert!(config.file.is_none());
 
     let console = config.console.unwrap();
-    assert!(matches!(console.format, Format::Compact));
+    assert!(matches!(console.format, Format::Pretty(_)));
     assert!(console.ansi);
     assert!(matches!(console.writer, Writer::Stdout));
     assert!(console.show_path);
@@ -19,7 +19,7 @@ fn config_default() {
 #[test]
 fn console_default() {
     let cfg = Console::default();
-    assert!(matches!(cfg.format, Format::Compact));
+    assert!(matches!(cfg.format, Format::Pretty(_)));
     assert!(cfg.ansi);
     assert!(cfg.show_path);
     assert!(cfg.show_spans);
@@ -28,14 +28,14 @@ fn console_default() {
 #[test]
 fn console_builder() {
     let cfg = Console::builder()
-        .format(Format::Json)
+        .format(Format::Json(LayerConfig::json()))
         .ansi(false)
         .show_path(false)
         .show_spans(false)
         .time_format("%Y")
         .style(Style::default())
         .build();
-    assert!(matches!(cfg.format, Format::Json));
+    assert!(matches!(cfg.format, Format::Json(_)));
     assert!(!cfg.ansi);
     assert!(!cfg.show_path);
     assert!(!cfg.show_spans);
@@ -70,9 +70,12 @@ fn level_custom_directive() {
 
 #[test]
 fn filter_builds_directive() {
-    let filter = Filter::new(Level::Debug)
-        .with_target("my_crate", Level::Trace)
-        .with_target("my_crate::db", Level::Warn);
+    let filter = {
+        let mut f = Filter::new(Level::Debug);
+        f.with_target("my_crate", Level::Trace);
+        f.with_target("my_crate::db", Level::Warn);
+        f
+    };
 
     let directive = filter.as_directive();
     assert!(directive.starts_with("debug,"));
@@ -84,8 +87,8 @@ fn filter_builds_directive() {
 #[test]
 fn filter_updates_targets() {
     let mut filter = Filter::new(Level::Info);
-    filter.set_target("my_crate", Level::Debug);
-    filter.set_target("my_crate", Level::Trace);
+    filter.with_target("my_crate", Level::Debug);
+    filter.with_target("my_crate", Level::Trace);
 
     assert_eq!(filter.as_directive(), "info,my_crate=trace");
     assert!(filter.remove_target("my_crate"));
@@ -100,7 +103,7 @@ fn rotation_default_is_none() {
 #[test]
 fn filter_remove_target_exists() {
     let mut filter = Filter::new(Level::Info);
-    filter.set_target("my_crate", Level::Debug);
+    filter.with_target("my_crate", Level::Debug);
     assert!(filter.remove_target("my_crate"));
 }
 

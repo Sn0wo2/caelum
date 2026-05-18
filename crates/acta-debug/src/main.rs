@@ -1,7 +1,7 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 use std::sync::LazyLock;
 
-use acta::{Config, build_file_layer, init};
+use acta::{Config, LayerConfig, build_file_layer, init};
 use acta::{
     Console, File, Format, Formatter, Icons, Level, LevelLabels, Rotation, Style, Theme, Writer,
     build_console_layer, build_console_layer_with, build_reload_filter, rotate_log_file,
@@ -99,7 +99,7 @@ fn main() {
     {
         let console = Console::default();
         let formatter = Formatter::new().with_icons(Icons::UNICODE);
-        let layer = build_console_layer_with(&console, &formatter);
+        let layer = build_console_layer_with(&console, formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("unicode"));
     }
@@ -108,7 +108,7 @@ fn main() {
     {
         let console = Console::default();
         let formatter = Formatter::new().with_icons(Icons::custom("", "", "", "", "", "", "", ""));
-        let layer = build_console_layer_with(&console, &formatter);
+        let layer = build_console_layer_with(&console, formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("no-icons"));
     }
@@ -117,14 +117,16 @@ fn main() {
     {
         let console = Console::default();
         let formatter = Formatter::new().with_icons(Icons::NERD);
-        let layer = build_console_layer_with(&console, &formatter);
+        let layer = build_console_layer_with(&console, formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("nerd"));
     }
 
     log!(sub, "Pretty format — target, file, line, span context");
     {
-        let console = Console::builder().format(Format::Pretty).build();
+        let console = Console::builder()
+            .format(Format::Pretty(LayerConfig::pretty()))
+            .build();
         let layer = build_console_layer(&console);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("pretty"));
@@ -132,7 +134,10 @@ fn main() {
 
     log!(sub, "JSON format — machine-readable structured output");
     {
-        let console = Console::builder().format(Format::Json).ansi(false).build();
+        let console = Console::builder()
+            .format(Format::Json(LayerConfig::json()))
+            .ansi(false)
+            .build();
         let layer = build_console_layer(&console);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("json"));
@@ -145,7 +150,7 @@ fn main() {
         let formatter = Formatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, &formatter);
+        let layer = build_console_layer_with(&console, formatter);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("compact"));
 
@@ -154,7 +159,9 @@ fn main() {
             info,
             "Pretty — multiline, with target path and span context"
         );
-        let console = Console::builder().format(Format::Pretty).build();
+        let console = Console::builder()
+            .format(Format::Pretty(LayerConfig::pretty()))
+            .build();
         let layer = build_console_layer(&console);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("pretty"));
@@ -181,7 +188,7 @@ fn main() {
             println!("  [{name}]");
             let console = Console::default();
             let formatter = Formatter::new().with_theme(*theme).with_show_path(false);
-            let layer = build_console_layer_with(&console, &formatter);
+            let layer = build_console_layer_with(&console, formatter);
             let subscriber = tracing_subscriber::registry().with(layer);
             tracing::subscriber::with_default(subscriber, || {
                 tracing::info!(
@@ -200,7 +207,7 @@ fn main() {
             .with_theme(Theme::one_dark())
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, &fmt);
+        let layer = build_console_layer_with(&console, fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || {
             tracing::error!(code = 500, "error level: server crash with error code");
@@ -246,13 +253,13 @@ fn main() {
             .with_show_spans(false);
 
         log!(info, "short — single-letter level labels");
-        let layer = build_console_layer_with(&Console::default(), &short_fmt);
+        let layer = build_console_layer_with(&Console::default(), short_fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("short"));
 
         println!();
         log!(info, "long — full-word level labels");
-        let layer = build_console_layer_with(&Console::default(), &long_fmt);
+        let layer = build_console_layer_with(&Console::default(), long_fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("long"));
     }
@@ -264,7 +271,7 @@ fn main() {
             "path=on, spans=on — file location and span chain visible"
         );
         let fmt = Formatter::new().with_show_path(true).with_show_spans(true);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("full"));
 
@@ -276,7 +283,7 @@ fn main() {
         let fmt = Formatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs_rich("minimal"));
     }
@@ -290,7 +297,7 @@ fn main() {
         let fmt = Formatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("default-time"));
 
@@ -300,7 +307,7 @@ fn main() {
             .with_time_format("%Y-%m-%d %H:%M:%S%.3f")
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("ms"));
     }
@@ -309,14 +316,14 @@ fn main() {
     {
         log!(info, "path width = 28 (compile-time default)");
         let fmt = Formatter::new().with_show_spans(false);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("wide"));
 
         println!();
         log!(info, "path width = 20 (overridden at runtime)");
         let fmt = Formatter::new().with_path_width(20).with_show_spans(false);
-        let layer = build_console_layer_with(&Console::default(), &fmt);
+        let layer = build_console_layer_with(&Console::default(), fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, || demo_logs("narrow"));
     }
@@ -333,7 +340,7 @@ fn main() {
         let fmt = Formatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, &fmt);
+        let layer = build_console_layer_with(&console, fmt);
         let subscriber = tracing_subscriber::registry()
             .with(layer)
             .with(filter_layer);
@@ -374,8 +381,9 @@ fn main() {
             .with_show_path(false)
             .with_show_spans(false);
         let style = fmt.style_config();
-        let layer = build_console_layer_with(&console, &fmt);
         let (filter_layer, mut reload_handle) = build_reload_filter(Level::Info, *style);
+        let layer = build_console_layer_with(&console, fmt);
+
         let subscriber = tracing_subscriber::registry()
             .with(layer)
             .with(filter_layer);
@@ -403,7 +411,7 @@ fn main() {
     {
         let console = Console::default();
         let fmt = Formatter::new().with_show_path(false).with_show_spans(true);
-        let layer = build_console_layer_with(&console, &fmt);
+        let layer = build_console_layer_with(&console, fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         log!(
@@ -427,7 +435,7 @@ fn main() {
         let fmt = Formatter::new()
             .with_show_path(false)
             .with_show_spans(false);
-        let layer = build_console_layer_with(&console, &fmt);
+        let layer = build_console_layer_with(&console, fmt);
         let subscriber = tracing_subscriber::registry().with(layer);
         eprintln!("    (output below written to stderr)");
         tracing::subscriber::with_default(subscriber, || demo_logs("stderr"));
@@ -440,7 +448,7 @@ fn main() {
             (
                 "json + stderr + no-ansi",
                 Console::builder()
-                    .format(Format::Json)
+                    .format(Format::Json(LayerConfig::json()))
                     .writer(Writer::Stderr)
                     .ansi(false)
                     .build(),
@@ -448,7 +456,7 @@ fn main() {
             (
                 "pretty + no-path + no-spans",
                 Console::builder()
-                    .format(Format::Pretty)
+                    .format(Format::Pretty(LayerConfig::pretty()))
                     .show_path(false)
                     .show_spans(false)
                     .build(),
@@ -485,7 +493,7 @@ fn main() {
 
         let layer = build_console_layer(
             &Console::builder()
-                .format(Format::Json)
+                .format(Format::Json(LayerConfig::json()))
                 .writer(Writer::Stderr)
                 .ansi(false)
                 .build(),

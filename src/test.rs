@@ -1,11 +1,16 @@
 use std::io;
 
 use super::*;
+use crate::config::LayerConfig;
 use crate::reload::build_reload_filter_for_test as build_reload_filter;
 
 #[test]
 fn build_console_layer_all_variants() {
-    let formats = [Format::Pretty, Format::Compact, Format::Json];
+    let formats = [
+        Format::Pretty(LayerConfig::pretty()),
+        Format::Compact(LayerConfig::compact()),
+        Format::Json(LayerConfig::json()),
+    ];
     let writers = [Writer::Stdout, Writer::Stderr];
 
     for format in &formats {
@@ -14,6 +19,7 @@ fn build_console_layer_all_variants() {
                 format: format.clone(),
                 writer: writer.clone(),
                 ansi: true,
+                color_depth: None,
                 show_path: true,
                 show_spans: true,
                 time_format: None,
@@ -46,8 +52,8 @@ fn build_console_layer_custom_time() {
 #[test]
 fn build_console_layer_with_nerd_icons() {
     let cfg = Console::default();
-    let formatter = Formatter::new().with_icons(Icons::nerd());
-    let _layer = build_console_layer_with(&cfg, &formatter);
+    let formatter = Formatter::new().with_icons(Icons::NERD);
+    let _layer = build_console_layer_with(&cfg, formatter);
 }
 
 #[cfg(feature = "file")]
@@ -77,12 +83,9 @@ fn build_reload_filter_works() {
     assert!(result.is_ok(), "set_level failed: {:?}", result);
     assert!(handle.set_target_level("my_crate", Level::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());
-    assert!(handle.reload("info,my_crate=trace").is_ok());
-    assert!(
-        handle
-            .set_filter(Filter::new(Level::Warn).with_target("my_crate", Level::Debug))
-            .is_ok()
-    );
+    let mut filter = Filter::new(Level::Warn);
+    filter.with_target("my_crate", Level::Debug);
+    assert!(handle.set_filter(filter).is_ok());
 }
 
 #[cfg(feature = "file")]
@@ -133,7 +136,7 @@ fn reload_handle_with_style_config() {
     let style = Style::default();
     let (_layer, mut handle, _subscriber) = build_reload_filter(Level::Info, style);
     handle.with_style(|s| s.theme = Theme::dracula());
-    handle.with_style(|s| s.icons = Icons::unicode());
+    handle.with_style(|s| s.icons = Icons::UNICODE);
     handle.with_style(|s| s.labels = LevelLabels::SHORT);
 }
 

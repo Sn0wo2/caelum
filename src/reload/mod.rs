@@ -13,6 +13,7 @@ pub(crate) type RawReloadHandle = tracing_subscriber::reload::Handle<EnvFilter, 
 
 #[must_use = "dropping ReloadHandle loses the ability to change log filters at runtime"]
 #[allow(clippy::module_name_repetitions)]
+#[non_exhaustive]
 pub struct ReloadHandle {
     pub(crate) raw: RawReloadHandle,
     pub(crate) filter: Filter,

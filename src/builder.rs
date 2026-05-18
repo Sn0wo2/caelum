@@ -6,8 +6,7 @@ use tracing_subscriber::prelude::*;
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 use crate::config::AsyncMode;
-use crate::config::{Config, Style};
-use crate::config::{Console, Filter, Format, Writer};
+use crate::config::{ColorDepth, Config, Console, Filter, Format, Style, Writer};
 use crate::fmt::Formatter;
 use crate::reload::{FmtLayer, InnerSubscriber, ReloadHandle};
 
@@ -15,18 +14,18 @@ use crate::reload::{FmtLayer, InnerSubscriber, ReloadHandle};
 use crate::writer;
 
 pub fn build_console_layer(console: &Console) -> FmtLayer {
-    let mut formatter = 
-    Formatter::new()
+    let mut formatter = Formatter::new()
         .with_style_config(console.style)
         .with_show_path(console.show_path)
-        .with_show_spans(console.show_spans);
+        .with_show_spans(console.show_spans)
+        .with_color_depth(console.color_depth.unwrap_or(ColorDepth::TrueColor));
     if let Some(tf) = &console.time_format {
         formatter = formatter.with_time_format(tf);
     }
-    build_console_layer_with(console, &formatter)
+    build_console_layer_with(console, formatter)
 }
 
-pub fn build_console_layer_with(console: &Console, formatter: &Formatter) -> FmtLayer {
+pub fn build_console_layer_with(console: &Console, formatter: Formatter) -> FmtLayer {
     macro_rules! writer {
         ($layer:expr $(,)?) => {{
             match console.writer {
@@ -64,32 +63,32 @@ pub fn build_console_layer_with(console: &Console, formatter: &Formatter) -> Fmt
     };
 
     match &console.format {
-        Format::Pretty => writer!(
+        Format::Pretty(cfg) => writer!(
             base()
                 .pretty()
-                .with_target(true)
-                .with_file(true)
-                .with_line_number(true)
+                .with_target(cfg.target)
+                .with_file(cfg.file)
+                .with_line_number(cfg.line_number)
                 .with_ansi(console.ansi)
         ),
-        Format::Compact => writer!(
+        Format::Compact(cfg) => writer!(
             base()
-                .with_target(false)
-                .with_file(false)
-                .with_line_number(false)
+                .with_target(cfg.target)
+                .with_file(cfg.file)
+                .with_line_number(cfg.line_number)
                 .with_ansi(console.ansi)
-                .event_format(formatter.clone())
+                .event_format(formatter)
         ),
-        Format::Json => writer!(
+        Format::Json(cfg) => writer!(
             base()
                 .json()
-                .with_target(false)
-                .with_file(false)
-                .with_line_number(false)
-                .with_current_span(false)
-                .with_span_list(false)
-                .flatten_event(true)
-                .with_ansi(false)
+                .with_target(cfg.target)
+                .with_file(cfg.file)
+                .with_line_number(cfg.line_number)
+                .with_current_span(cfg.current_span)
+                .with_span_list(cfg.span_list)
+                .flatten_event(cfg.flatten_event)
+                .with_ansi(console.ansi)
         ),
     }
 }
@@ -116,16 +115,36 @@ pub fn build_reload_filter(
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct SubscriberParts {
-    pub reload_handle: ReloadHandle,
-    pub file_writer: Option<writer::FileWriter>,
-    pub file_guard: Option<writer::LogHandle>,
-    pub log_path: Option<PathBuf>,
+    reload_handle: ReloadHandle,
+    file_writer: Option<writer::FileWriter>,
+    file_guard: Option<writer::LogHandle>,
+    log_path: Option<PathBuf>,
 }
 
 #[cfg(not(feature = "file"))]
 #[derive(Debug)]
 pub struct SubscriberParts {
-    pub reload_handle: ReloadHandle,
+    reload_handle: ReloadHandle,
+}
+impl SubscriberParts {
+    pub fn reload_handle(self) -> ReloadHandle {
+        self.reload_handle
+    }
+
+    #[cfg(feature = "file")]
+    pub fn file_writer(self) -> Option<writer::FileWriter> {
+        self.file_writer
+    }
+
+    #[cfg(feature = "file")]
+    pub fn file_guard(self) -> Option<writer::LogHandle> {
+        self.file_guard
+    }
+
+    #[cfg(feature = "file")]
+    pub fn log_path(self) -> Option<PathBuf> {
+        self.log_path
+    }
 }
 
 #[cfg(feature = "file")]
@@ -235,22 +254,25 @@ pub fn build_subscriber(config: &Config) -> crate::Result<SubscriberParts> {
 
 #[cfg(feature = "file")]
 pub fn init(config: impl Into<Config>) -> crate::Result<crate::guard::TracingGuard> {
-    let parts = build_subscriber(&config.into())?;
+    let SubscriberParts {
+        reload_handle,
+        file_guard,
+        log_path,
+        ..
+    } = build_subscriber(&config.into())?;
 
     Ok(crate::guard::TracingGuard {
-        reload_handle: parts.reload_handle,
+        reload_handle,
         #[cfg(feature = "file")]
-        worker_guard: parts.file_guard,
+        worker_guard: file_guard,
         #[cfg(feature = "file")]
-        log_path: parts.log_path,
+        log_path,
     })
 }
 
 #[cfg(not(feature = "file"))]
 pub fn init(config: impl Into<Config>) -> crate::Result<crate::guard::TracingGuard> {
-    let parts = build_subscriber(&config.into())?;
+    let SubscriberParts { reload_handle } = build_subscriber(&config.into())?;
 
-    Ok(crate::guard::TracingGuard {
-        reload_handle: parts.reload_handle,
-    })
+    Ok(crate::guard::TracingGuard { reload_handle })
 }

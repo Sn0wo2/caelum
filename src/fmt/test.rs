@@ -32,7 +32,7 @@ fn formatter_builder() {
 #[cfg(feature = "nerd")]
 #[test]
 fn formatter_with_icons() {
-    let fmt = Formatter::new().with_icons(Icons::nerd());
+    let fmt = Formatter::new().with_icons(Icons::NERD);
     assert_eq!(fmt.style_config().icons.bracket_open, "\u{e0b6}");
 }
 
@@ -56,8 +56,8 @@ fn theme_default_is_trans_flag() {
 #[cfg(feature = "nerd")]
 #[test]
 fn icons_unicode_vs_nerd() {
-    let u = Icons::unicode();
-    let n = Icons::nerd();
+    let u = Icons::UNICODE;
+    let n = Icons::NERD;
     assert_ne!(u.bracket_open, n.bracket_open);
     assert_ne!(u.bracket_close, n.bracket_close);
     assert_ne!(u.arrow, n.arrow);
@@ -191,7 +191,7 @@ fn formatter_style_config_returns_reference() {
 fn formatter_with_style_config_replaces_all() {
     let config = Style {
         labels: LevelLabels::SHORT,
-        icons: Icons::unicode(),
+        icons: Icons::UNICODE,
         theme: Theme::monokai(),
     };
     let fmt = Formatter::new().with_style_config(config);
@@ -205,14 +205,14 @@ fn formatter_with_labels_changes_labels() {
     let fmt = Formatter::new();
     let before = fmt.style_config().labels.error;
 
-    let fmt = fmt.with_labels(LevelLabels::SHORT);
+    let fmt = fmt.with_labels(LevelLabels::DEFAULT);
     assert_ne!(fmt.style_config().labels.error, before);
     assert_eq!(fmt.style_config().labels.error, "ERROR");
 }
 
 #[test]
 fn formatter_with_icons_changes_icons() {
-    let fmt = Formatter::new().with_icons(Icons::unicode());
+    let fmt = Formatter::new().with_icons(Icons::UNICODE);
     assert_eq!(fmt.style_config().icons.bracket_open, "[");
 }
 
@@ -306,7 +306,7 @@ fn level_labels_default_equals_short() {
 
 #[test]
 fn icons_unicode() {
-    let icons = Icons::unicode();
+    let icons = Icons::UNICODE;
     assert_eq!(icons.bracket_open, "[");
     assert_eq!(icons.bracket_close, "]");
     assert_eq!(icons.separator, "\u{2507}");
@@ -316,14 +316,14 @@ fn icons_unicode() {
 
 #[test]
 fn icons_is_nerd_returns_false_for_unicode() {
-    let icons = Icons::unicode();
+    let icons = Icons::UNICODE;
     assert!(!icons.is_nerd());
 }
 
 #[cfg(feature = "nerd")]
 #[test]
 fn icons_is_nerd_returns_true_for_nerd() {
-    let icons = Icons::nerd();
+    let icons = Icons::NERD;
     assert!(icons.is_nerd());
 }
 
@@ -334,10 +334,7 @@ fn style_config_default() {
         format!("{:?}", config.theme),
         format!("{:?}", Theme::acta())
     );
-    #[cfg(feature = "nerd")]
-    assert_eq!(config.icons, Icons::nerd());
-    #[cfg(not(feature = "nerd"))]
-    assert_eq!(config.icons, Icons::unicode());
+    assert_eq!(config.icons, Icons::UNICODE);
     assert_eq!(config.labels, LevelLabels::SHORT);
 }
 

@@ -4,6 +4,7 @@
 #![allow(clippy::pub_use)]
 
 pub mod builder;
+pub mod color;
 pub mod config;
 pub mod fmt;
 pub mod guard;
@@ -12,11 +13,12 @@ pub mod reload;
 #[cfg(any(feature = "file", feature = "custom-async", feature = "native-async"))]
 pub mod writer;
 
-pub use config::{Icons, LevelLabels, Style, Theme};
+pub use config::{ColorDepth, Icons, LevelLabels, Style, Theme};
 pub use fmt::Formatter;
 pub use guard::TracingGuard;
 pub use reload::ReloadHandle;
 
+pub use color::{rgb_to_ansi16, rgb_to_ansi256};
 pub use tracing::{
     debug, debug_span, error, error_span, info, info_span, trace, trace_span, warn, warn_span,
 };
@@ -30,7 +32,7 @@ pub use config::AsyncMode;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use writer::AsyncWriterTarget;
 
-pub use config::{Config, Console, File, Filter, Format, Level, Rotation, Writer};
+pub use config::{Config, Console, File, Filter, Format, LayerConfig, Level, Rotation, Writer};
 
 #[cfg(feature = "file")]
 pub use crate::writer::{FileWriter, LogHandle, resolve_log_path, rotate_log_file};

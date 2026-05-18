@@ -1,3 +1,5 @@
+use crate::color::style::{rgb_to_owo, rgb_to_owo_on, theme_fg, theme_fg_dimmed};
+use crate::config::ColorDepth;
 use crate::config::{Icons, LevelLabels, Style, Theme};
 use arrayvec::ArrayString;
 use chrono::Utc;
@@ -34,14 +36,61 @@ fn make_level_styles(r: u8, g: u8, b: u8) -> LevelStyles {
     }
 }
 
-fn build_all_level_styles(theme: &Theme) -> [LevelStyles; 5] {
-    [
-        make_level_styles(theme.error.0, theme.error.1, theme.error.2),
-        make_level_styles(theme.warn.0, theme.warn.1, theme.warn.2),
-        make_level_styles(theme.info.0, theme.info.1, theme.info.2),
-        make_level_styles(theme.debug.0, theme.debug.1, theme.debug.2),
-        make_level_styles(theme.trace.0, theme.trace.1, theme.trace.2),
-    ]
+fn make_level_styles_ansi256(r: u8, g: u8, b: u8) -> LevelStyles {
+    let depth = ColorDepth::Ansi256;
+    LevelStyles {
+        bracket_fg: rgb_to_owo(r, g, b, depth),
+        bracket_bg: rgb_to_owo_on(r, g, b, depth),
+        label: rgb_to_owo_on(r >> 2, g >> 2, b >> 2, depth),
+    }
+}
+
+fn make_level_styles_ansi16(r: u8, g: u8, b: u8) -> LevelStyles {
+    let depth = ColorDepth::Ansi16;
+    LevelStyles {
+        bracket_fg: rgb_to_owo(r, g, b, depth),
+        bracket_bg: rgb_to_owo_on(r, g, b, depth),
+        label: rgb_to_owo_on(r >> 2, g >> 2, b >> 2, depth),
+    }
+}
+
+#[derive(Clone, Debug)]
+struct AllLevelStyles {
+    truecolor: [LevelStyles; 5],
+    ansi256: [LevelStyles; 5],
+    ansi16: [LevelStyles; 5],
+    nocolor: [LevelStyles; 5],
+}
+
+fn build_all_level_styles(theme: &Theme) -> AllLevelStyles {
+    AllLevelStyles {
+        truecolor: [
+            make_level_styles(theme.error.0, theme.error.1, theme.error.2),
+            make_level_styles(theme.warn.0, theme.warn.1, theme.warn.2),
+            make_level_styles(theme.info.0, theme.info.1, theme.info.2),
+            make_level_styles(theme.debug.0, theme.debug.1, theme.debug.2),
+            make_level_styles(theme.trace.0, theme.trace.1, theme.trace.2),
+        ],
+        ansi256: [
+            make_level_styles_ansi256(theme.error.0, theme.error.1, theme.error.2),
+            make_level_styles_ansi256(theme.warn.0, theme.warn.1, theme.warn.2),
+            make_level_styles_ansi256(theme.info.0, theme.info.1, theme.info.2),
+            make_level_styles_ansi256(theme.debug.0, theme.debug.1, theme.debug.2),
+            make_level_styles_ansi256(theme.trace.0, theme.trace.1, theme.trace.2),
+        ],
+        ansi16: [
+            make_level_styles_ansi16(theme.error.0, theme.error.1, theme.error.2),
+            make_level_styles_ansi16(theme.warn.0, theme.warn.1, theme.warn.2),
+            make_level_styles_ansi16(theme.info.0, theme.info.1, theme.info.2),
+            make_level_styles_ansi16(theme.debug.0, theme.debug.1, theme.debug.2),
+            make_level_styles_ansi16(theme.trace.0, theme.trace.1, theme.trace.2),
+        ],
+        nocolor: [LevelStyles {
+            bracket_fg: OwoStyle::new(),
+            bracket_bg: OwoStyle::new(),
+            label: OwoStyle::new(),
+        }; 5],
+    }
 }
 
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
@@ -49,13 +98,15 @@ const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width")
 const PATH_BUF_SIZE: usize = 256;
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Formatter {
     pub(crate) time_format: String,
     pub(crate) path_width: usize,
     pub(crate) show_path: bool,
     pub(crate) show_spans: bool,
     style: Style,
-    level_styles: [LevelStyles; 5],
+    all_styles: AllLevelStyles,
+    color_depth: ColorDepth,
 }
 
 impl Default for Formatter {
@@ -68,14 +119,16 @@ impl Formatter {
     #[must_use]
     pub fn new() -> Self {
         let config = Style::default();
-        let level_styles = build_all_level_styles(&config.theme);
+        let all_styles = build_all_level_styles(&config.theme);
+        let color_depth = ColorDepth::TrueColor;
         Self {
             time_format: String::from("%H:%M:%S"),
             path_width: BUILD_PATH_WIDTH,
             show_path: true,
             show_spans: true,
             style: config,
-            level_styles,
+            all_styles,
+            color_depth,
         }
     }
 
@@ -91,7 +144,7 @@ impl Formatter {
 
     #[must_use]
     pub fn with_style_config(mut self, style: Style) -> Self {
-        self.level_styles = build_all_level_styles(&style.theme);
+        self.all_styles = build_all_level_styles(&style.theme);
         self.style = style;
         self
     }
@@ -110,8 +163,14 @@ impl Formatter {
 
     #[must_use]
     pub fn with_theme(mut self, theme: Theme) -> Self {
-        self.level_styles = build_all_level_styles(&theme);
+        self.all_styles = build_all_level_styles(&theme);
         self.style.theme = theme;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_color_depth(mut self, depth: ColorDepth) -> Self {
+        self.color_depth = depth;
         self
     }
 
@@ -144,7 +203,7 @@ impl Formatter {
         write!(
             writer,
             "{}",
-            theme.text.style(now.format(&self.time_format))
+            theme_fg(theme.text, self.color_depth).style(now.format(&self.time_format))
         )
     }
 
@@ -206,12 +265,16 @@ impl Formatter {
         write!(
             writer,
             "{}",
-            theme.text.dimmed().style(self.format_path(
+            theme_fg_dimmed(theme.text, self.color_depth).style(self.format_path(
                 event.metadata().file().unwrap_or("?"),
                 event.metadata().line().unwrap_or(0),
             ))
         )?;
-        write!(writer, " {} ", theme.accent.style(icons.arrow))?;
+        write!(
+            writer,
+            " {} ",
+            theme_fg(theme.accent, self.color_depth).style(icons.arrow)
+        )?;
         Ok(())
     }
 
@@ -226,7 +289,11 @@ impl Formatter {
         event.record(&mut visitor);
 
         let mut sep = if let Some(msg) = visitor.message {
-            write!(writer, "{}", theme.text.style(msg))?;
+            write!(
+                writer,
+                "{}",
+                theme_fg(theme.text, self.color_depth).style(msg)
+            )?;
             " "
         } else {
             ""
@@ -237,9 +304,9 @@ impl Formatter {
                 writer,
                 "{}{}{}{}",
                 sep,
-                theme.secondary.style(k),
-                theme.accent.style("="),
-                theme.text.style(v)
+                theme_fg(theme.secondary, self.color_depth).style(k),
+                theme_fg(theme.accent, self.color_depth).style("="),
+                theme_fg(theme.text, self.color_depth).style(v)
             )?;
             sep = " ";
         }
@@ -272,17 +339,19 @@ impl Formatter {
         }
 
         let total = spans.len();
-        let accent = theme.accent;
-        let text = theme.text;
+        let accent = theme_fg(theme.accent, self.color_depth);
+        let accent_dimmed = theme_fg_dimmed(theme.accent, self.color_depth);
+        let text = theme_fg(theme.text, self.color_depth);
+        let text_dimmed = theme_fg_dimmed(theme.text, self.color_depth);
 
         write!(writer, " {}", accent.style("["))?;
 
         for (i, span) in spans.iter().enumerate() {
             if i > 0 {
-                write!(writer, "{} ", accent.dimmed().style(icons.span_join))?;
+                write!(writer, "{} ", accent_dimmed.style(icons.span_join))?;
             }
 
-            let span_style = if i == total - 1 { text } else { text.dimmed() };
+            let span_style = if i == total - 1 { text } else { text_dimmed };
 
             write!(writer, "{}", span_style.style(span.name()))?;
 
@@ -315,12 +384,19 @@ where
 
         let level = event.metadata().level();
 
+        let styles = match self.color_depth {
+            ColorDepth::TrueColor => &self.all_styles.truecolor,
+            ColorDepth::Ansi256 => &self.all_styles.ansi256,
+            ColorDepth::Ansi16 => &self.all_styles.ansi16,
+            ColorDepth::NoColor => &self.all_styles.nocolor,
+        };
+
         let (ls, level_label) = match *level {
-            Level::ERROR => (&self.level_styles[0], config.labels.error),
-            Level::WARN => (&self.level_styles[1], config.labels.warn),
-            Level::INFO => (&self.level_styles[2], config.labels.info),
-            Level::DEBUG => (&self.level_styles[3], config.labels.debug),
-            Level::TRACE => (&self.level_styles[4], config.labels.trace),
+            Level::ERROR => (&styles[0], config.labels.error),
+            Level::WARN => (&styles[1], config.labels.warn),
+            Level::INFO => (&styles[2], config.labels.info),
+            Level::DEBUG => (&styles[3], config.labels.debug),
+            Level::TRACE => (&styles[4], config.labels.trace),
         };
 
         let fg_style = if is_nerd {
@@ -332,13 +408,13 @@ where
         write!(
             writer,
             "{}",
-            config.theme.accent.style(config.icons.time_bracket_open)
+            theme_fg(config.theme.accent, self.color_depth).style(config.icons.time_bracket_open)
         )?;
         self.write_time(&mut writer, &config.theme)?;
         write!(
             writer,
             " {} ",
-            config.theme.accent.dimmed().style(config.icons.separator)
+            theme_fg_dimmed(config.theme.accent, self.color_depth).style(config.icons.separator)
         )?;
 
         write!(writer, "{}", fg_style.style(config.icons.bracket_open))?;
@@ -348,7 +424,7 @@ where
         write!(
             writer,
             "{} ",
-            config.theme.accent.style(config.icons.time_bracket_close)
+            theme_fg(config.theme.accent, self.color_depth).style(config.icons.time_bracket_close)
         )?;
 
         if self.show_path {
