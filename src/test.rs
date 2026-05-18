@@ -80,7 +80,7 @@ fn build_file_layer_creates_dirs() {
 fn build_reload_filter_works() {
     let (_layer, mut handle, _subscriber) = build_reload_filter(Level::Info, Style::default());
     let result = handle.set_level(Level::Debug);
-    assert!(result.is_ok(), "set_level failed: {:?}", result);
+    assert!(result.is_ok(), "set_level failed: {result:?}");
     assert!(handle.set_target_level("my_crate", Level::Trace).is_ok());
     assert!(handle.remove_target_level("my_crate").is_ok());
     let mut filter = Filter::new(Level::Warn);

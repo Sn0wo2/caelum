@@ -9,7 +9,7 @@ pub type SubscriberWithBoth = Layered<
     InnerSubscriber,
 >;
 
-pub(crate) fn build_reload_filter_for_test(
+pub fn build_reload_filter_for_test(
     level: Level,
     style: Style,
 ) -> (
@@ -22,7 +22,7 @@ pub(crate) fn build_reload_filter_for_test(
         .boxed();
     let subscriber_with_console = tracing_subscriber::Registry::default().with(console_layer);
 
-    let filter = Filter::new(level.clone());
+    let filter = Filter::new(level);
     let env_filter =
         tracing_subscriber::EnvFilter::try_new(filter.as_directive()).unwrap_or_default();
     let (env_layer, env_handle) = tracing_subscriber::reload::Layer::new(env_filter);
