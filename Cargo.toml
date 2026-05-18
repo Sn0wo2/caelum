@@ -58,6 +58,10 @@ tracing-subscriber = { version = "0.3", features = [
     "std",
 ] }
 smart-default = "0.7.1"
+supports-color = "3"
+ansi_colours = "1.2"
+anstyle-lossy = "1.1"
+anstyle = "1"
 
 [build-dependencies]
 acta-build = { workspace = true }
