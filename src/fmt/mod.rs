@@ -1,11 +1,11 @@
-use crate::color::style::{rgb_to_owo, rgb_to_owo_on, theme_fg, theme_fg_dimmed};
+use crate::color::style::{rgb_to_owo, rgb_to_owo_on, theme_fg_dimmed};
 use crate::config::ColorDepth;
 use crate::config::{Icons, LevelLabels, Style, Theme};
 use arrayvec::ArrayString;
 use chrono::Utc;
 use owo_colors::Style as OwoStyle;
 use smallvec::SmallVec;
-use std::borrow::Cow;
+
 use std::fmt;
 use std::fmt::Write;
 
@@ -19,79 +19,15 @@ mod visitor;
 use visitor::EventVisitor;
 
 #[derive(Clone, Copy, Debug)]
-struct LevelStyles {
+pub(crate) struct LevelStyles {
     bracket_fg: OwoStyle,
     bracket_bg: OwoStyle,
     label: OwoStyle,
 }
 
-#[allow(clippy::missing_const_for_fn)]
-fn make_level_styles(r: u8, g: u8, b: u8) -> LevelStyles {
-    LevelStyles {
-        bracket_fg: OwoStyle::new().truecolor(r, g, b),
-        bracket_bg: OwoStyle::new().truecolor(r, g, b).on_truecolor(r, g, b),
-        label: OwoStyle::new()
-            .truecolor(r >> 2, g >> 2, b >> 2)
-            .on_truecolor(r, g, b),
-    }
-}
 
-fn make_level_styles_ansi256(r: u8, g: u8, b: u8) -> LevelStyles {
-    let depth = ColorDepth::Ansi256;
-    LevelStyles {
-        bracket_fg: rgb_to_owo(r, g, b, depth),
-        bracket_bg: rgb_to_owo_on(r, g, b, depth),
-        label: rgb_to_owo_on(r >> 2, g >> 2, b >> 2, depth),
-    }
-}
 
-fn make_level_styles_ansi16(r: u8, g: u8, b: u8) -> LevelStyles {
-    let depth = ColorDepth::Ansi16;
-    LevelStyles {
-        bracket_fg: rgb_to_owo(r, g, b, depth),
-        bracket_bg: rgb_to_owo_on(r, g, b, depth),
-        label: rgb_to_owo_on(r >> 2, g >> 2, b >> 2, depth),
-    }
-}
-
-#[derive(Clone, Debug)]
-struct AllLevelStyles {
-    truecolor: [LevelStyles; 5],
-    ansi256: [LevelStyles; 5],
-    ansi16: [LevelStyles; 5],
-    nocolor: [LevelStyles; 5],
-}
-
-fn build_all_level_styles(theme: &Theme) -> AllLevelStyles {
-    AllLevelStyles {
-        truecolor: [
-            make_level_styles(theme.error.0, theme.error.1, theme.error.2),
-            make_level_styles(theme.warn.0, theme.warn.1, theme.warn.2),
-            make_level_styles(theme.info.0, theme.info.1, theme.info.2),
-            make_level_styles(theme.debug.0, theme.debug.1, theme.debug.2),
-            make_level_styles(theme.trace.0, theme.trace.1, theme.trace.2),
-        ],
-        ansi256: [
-            make_level_styles_ansi256(theme.error.0, theme.error.1, theme.error.2),
-            make_level_styles_ansi256(theme.warn.0, theme.warn.1, theme.warn.2),
-            make_level_styles_ansi256(theme.info.0, theme.info.1, theme.info.2),
-            make_level_styles_ansi256(theme.debug.0, theme.debug.1, theme.debug.2),
-            make_level_styles_ansi256(theme.trace.0, theme.trace.1, theme.trace.2),
-        ],
-        ansi16: [
-            make_level_styles_ansi16(theme.error.0, theme.error.1, theme.error.2),
-            make_level_styles_ansi16(theme.warn.0, theme.warn.1, theme.warn.2),
-            make_level_styles_ansi16(theme.info.0, theme.info.1, theme.info.2),
-            make_level_styles_ansi16(theme.debug.0, theme.debug.1, theme.debug.2),
-            make_level_styles_ansi16(theme.trace.0, theme.trace.1, theme.trace.2),
-        ],
-        nocolor: [LevelStyles {
-            bracket_fg: OwoStyle::new(),
-            bracket_bg: OwoStyle::new(),
-            label: OwoStyle::new(),
-        }; 5],
-    }
-}
+use std::sync::Arc;
 
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
 
@@ -104,9 +40,8 @@ pub struct Formatter {
     pub(crate) path_width: usize,
     pub(crate) show_path: bool,
     pub(crate) show_spans: bool,
-    style: Style,
-    all_styles: AllLevelStyles,
-    color_depth: ColorDepth,
+    pub(crate) style: Arc<arc_swap::ArcSwap<Style>>,
+    pub(crate) color_depth: ColorDepth,
 }
 
 impl Default for Formatter {
@@ -118,53 +53,51 @@ impl Default for Formatter {
 impl Formatter {
     #[must_use]
     pub fn new() -> Self {
-        let config = Style::default();
-        let all_styles = build_all_level_styles(&config.theme);
-        let color_depth = ColorDepth::TrueColor;
+        let style = Arc::new(arc_swap::ArcSwap::new(Arc::new(Style::default())));
+
         Self {
             time_format: String::from("%H:%M:%S"),
             path_width: BUILD_PATH_WIDTH,
             show_path: true,
             show_spans: true,
-            style: config,
-            all_styles,
-            color_depth,
+            style,
+            color_depth: ColorDepth::TrueColor,
         }
     }
 
+
     #[must_use]
-    pub const fn style_config(&self) -> &Style {
-        &self.style
+    pub fn style_config(&self) -> Style {
+        **self.style.load()
     }
 
     #[must_use]
-    pub const fn style_config_mut(&mut self) -> &mut Style {
-        &mut self.style
-    }
-
-    #[must_use]
-    pub fn with_style_config(mut self, style: Style) -> Self {
-        self.all_styles = build_all_level_styles(&style.theme);
-        self.style = style;
+    pub fn with_style_config(self, new_style: Style) -> Self {
+        self.style.store(Arc::new(new_style));
         self
     }
 
     #[must_use]
-    pub const fn with_icons(mut self, icons: Icons) -> Self {
-        self.style.icons = icons;
+    pub fn with_icons(self, icons: Icons) -> Self {
+        let mut style = **self.style.load();
+        style.icons = icons;
+        self.style.store(Arc::new(style));
         self
     }
 
     #[must_use]
-    pub const fn with_labels(mut self, labels: LevelLabels) -> Self {
-        self.style.labels = labels;
+    pub fn with_labels(self, labels: LevelLabels) -> Self {
+        let mut style = **self.style.load();
+        style.labels = labels;
+        self.style.store(Arc::new(style));
         self
     }
 
     #[must_use]
-    pub fn with_theme(mut self, theme: Theme) -> Self {
-        self.all_styles = build_all_level_styles(&theme);
-        self.style.theme = theme;
+    pub fn with_theme(self, theme: Theme) -> Self {
+        let mut style = **self.style.load();
+        style.theme = theme;
+        self.style.store(Arc::new(style));
         self
     }
 
@@ -198,28 +131,24 @@ impl Formatter {
         self
     }
 
-    fn write_time(&self, writer: &mut Writer<'_>, theme: &Theme) -> fmt::Result {
-        let now = Utc::now();
-        write!(
-            writer,
-            "{}",
-            theme_fg(theme.text, self.color_depth).style(now.format(&self.time_format))
-        )
-    }
-
-    fn format_path(&self, file: &str, line: u32) -> ArrayString<PATH_BUF_SIZE> {
-        let normalized: Cow<'_, str> = if file.contains('\\') {
-            Cow::Owned(file.replace('\\', "/"))
-        } else {
-            Cow::Borrowed(file)
-        };
-        let path = normalized.find("src/").map_or(&*normalized, |i| {
-            normalized.get(i.saturating_add(4)..).unwrap_or(&normalized)
+    pub(crate) fn format_path(&self, file: &str, line: u32) -> ArrayString<PATH_BUF_SIZE> {
+        let path_start = file.find("src/").or_else(|| file.find("src\\"));
+        let path = path_start.map_or(file, |i| {
+            file.get(i.saturating_add(4)..).unwrap_or(file)
         });
+
+        let mut norm_path = ArrayString::<PATH_BUF_SIZE>::new();
+        for c in path.chars() {
+            if norm_path.len() < norm_path.capacity() {
+                let replaced = if c == '\\' { '/' } else { c };
+                norm_path.push(replaced);
+            }
+        }
+        let path_str = norm_path.as_str();
 
         let max_width = self.path_width;
         let mut full = ArrayString::<PATH_BUF_SIZE>::new();
-        let _ = write!(full, "{path}:{line}");
+        let _ = write!(full, "{path_str}:{line}");
 
         if full.len() <= max_width {
             let mut result = ArrayString::<PATH_BUF_SIZE>::new();
@@ -227,13 +156,13 @@ impl Formatter {
             return result;
         }
 
-        if let Some(last_slash) = path.rfind('/') {
-            let tail = path.get(last_slash.saturating_add(1)..).unwrap_or(path);
+        if let Some(last_slash) = path_str.rfind('/') {
+            let tail = path_str.get(last_slash.saturating_add(1)..).unwrap_or(path_str);
             let mut file_part = ArrayString::<PATH_BUF_SIZE>::new();
             let _ = write!(file_part, "{tail}:{line}");
 
             if file_part.len().saturating_add(2) <= max_width {
-                let dir_part = path.get(..last_slash).unwrap_or("");
+                let dir_part = path_str.get(..last_slash).unwrap_or("");
                 let dir_start = dir_part
                     .len()
                     .saturating_sub(max_width.saturating_sub(file_part.len()).saturating_sub(1));
@@ -255,6 +184,15 @@ impl Formatter {
         result
     }
 
+    fn write_time(&self, writer: &mut Writer<'_>, theme: &Theme) -> fmt::Result {
+        let now = Utc::now();
+        write!(
+            writer,
+            "{}",
+            rgb_to_owo(theme.text, self.color_depth).style(now.format(&self.time_format))
+        )
+    }
+
     fn format_path_section(
         &self,
         writer: &mut Writer<'_>,
@@ -273,12 +211,11 @@ impl Formatter {
         write!(
             writer,
             " {} ",
-            theme_fg(theme.accent, self.color_depth).style(icons.arrow)
+            rgb_to_owo(theme.accent, self.color_depth).style(icons.arrow)
         )?;
         Ok(())
     }
 
-    #[allow(clippy::unused_self)]
     fn format_fields(
         &self,
         writer: &mut Writer<'_>,
@@ -292,7 +229,7 @@ impl Formatter {
             write!(
                 writer,
                 "{}",
-                theme_fg(theme.text, self.color_depth).style(msg)
+                rgb_to_owo(theme.text, self.color_depth).style(msg)
             )?;
             " "
         } else {
@@ -304,9 +241,9 @@ impl Formatter {
                 writer,
                 "{}{}{}{}",
                 sep,
-                theme_fg(theme.secondary, self.color_depth).style(k),
-                theme_fg(theme.accent, self.color_depth).style("="),
-                theme_fg(theme.text, self.color_depth).style(v)
+                rgb_to_owo(theme.secondary, self.color_depth).style(k),
+                rgb_to_owo(theme.accent, self.color_depth).style("="),
+                rgb_to_owo(theme.text, self.color_depth).style(v)
             )?;
             sep = " ";
         }
@@ -314,7 +251,6 @@ impl Formatter {
         Ok(())
     }
 
-    #[allow(clippy::unused_self)]
     fn format_spans<S, N>(
         &self,
         writer: &mut Writer<'_>,
@@ -339,9 +275,9 @@ impl Formatter {
         }
 
         let total = spans.len();
-        let accent = theme_fg(theme.accent, self.color_depth);
+        let accent = rgb_to_owo(theme.accent, self.color_depth);
         let accent_dimmed = theme_fg_dimmed(theme.accent, self.color_depth);
-        let text = theme_fg(theme.text, self.color_depth);
+        let text = rgb_to_owo(theme.text, self.color_depth);
         let text_dimmed = theme_fg_dimmed(theme.text, self.color_depth);
 
         write!(writer, " {}", accent.style("["))?;
@@ -379,24 +315,29 @@ where
         mut writer: Writer<'_>,
         event: &Event<'_>,
     ) -> fmt::Result {
-        let config = self.style_config();
+        let config = self.style.load();
         let is_nerd = config.icons.is_nerd();
 
         let level = event.metadata().level();
 
-        let styles = match self.color_depth {
-            ColorDepth::TrueColor => &self.all_styles.truecolor,
-            ColorDepth::Ansi256 => &self.all_styles.ansi256,
-            ColorDepth::Ansi16 => &self.all_styles.ansi16,
-            ColorDepth::NoColor => &self.all_styles.nocolor,
+        let (color, level_label) = match *level {
+            Level::ERROR => (config.theme.error, config.labels.error),
+            Level::WARN => (config.theme.warn, config.labels.warn),
+            Level::INFO => (config.theme.info, config.labels.info),
+            Level::DEBUG => (config.theme.debug, config.labels.debug),
+            Level::TRACE => (config.theme.trace, config.labels.trace),
         };
 
-        let (ls, level_label) = match *level {
-            Level::ERROR => (&styles[0], config.labels.error),
-            Level::WARN => (&styles[1], config.labels.warn),
-            Level::INFO => (&styles[2], config.labels.info),
-            Level::DEBUG => (&styles[3], config.labels.debug),
-            Level::TRACE => (&styles[4], config.labels.trace),
+        let ls = {
+            let r = color.0;
+            let g = color.1;
+            let b = color.2;
+            let depth = self.color_depth;
+            LevelStyles {
+                bracket_fg: rgb_to_owo((r, g, b), depth),
+                bracket_bg: rgb_to_owo_on(r, g, b, depth),
+                label: rgb_to_owo_on(r, g, b, depth),
+            }
         };
 
         let fg_style = if is_nerd {
@@ -408,7 +349,7 @@ where
         write!(
             writer,
             "{}",
-            theme_fg(config.theme.accent, self.color_depth).style(config.icons.time_bracket_open)
+            rgb_to_owo(config.theme.accent, self.color_depth).style(config.icons.time_bracket_open)
         )?;
         self.write_time(&mut writer, &config.theme)?;
         write!(
@@ -424,7 +365,7 @@ where
         write!(
             writer,
             "{} ",
-            theme_fg(config.theme.accent, self.color_depth).style(config.icons.time_bracket_close)
+            rgb_to_owo(config.theme.accent, self.color_depth).style(config.icons.time_bracket_close)
         )?;
 
         if self.show_path {

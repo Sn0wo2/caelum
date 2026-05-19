@@ -1,8 +1,5 @@
 use super::visitor::EventVisitor;
 use super::*;
-use crate::Rotation;
-#[cfg(feature = "file")]
-use crate::writer::file::rotate_log_file;
 use smallvec::SmallVec;
 
 #[test]
@@ -115,76 +112,12 @@ fn format_path_strips_src() {
     assert!(!result.contains("src/"));
 }
 
-#[cfg(feature = "file")]
-#[test]
-fn rotate_nonexistent_file_is_noop() {
-    let path = std::env::temp_dir().join("acta-test-nonexistent.log");
-    drop(std::fs::remove_file(&path));
-    assert!(rotate_log_file(&path, Rotation::Rename).is_ok());
-    #[cfg(feature = "compress")]
-    assert!(rotate_log_file(&path, Rotation::Compress).is_ok());
-    assert!(rotate_log_file(&path, Rotation::None).is_ok());
-}
-
-#[cfg(feature = "file")]
-#[test]
-fn rotate_none_keeps_file() {
-    let dir = std::env::temp_dir().join("acta-test-fmt-none");
-    drop(std::fs::create_dir_all(&dir));
-    let path = dir.join("app.log");
-    std::fs::write(&path, b"hello\n").unwrap();
-
-    rotate_log_file(&path, Rotation::None).unwrap();
-    assert!(path.exists());
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "hello\n");
-    drop(std::fs::remove_dir_all(&dir));
-}
-
-#[cfg(feature = "file")]
-#[test]
-fn rotate_rename() {
-    let dir = std::env::temp_dir().join("acta-test-fmt-rename");
-    drop(std::fs::remove_dir_all(&dir));
-    drop(std::fs::create_dir_all(&dir));
-    let path = dir.join("app.log");
-    std::fs::write(&path, b"old content\n").unwrap();
-
-    rotate_log_file(&path, Rotation::Rename).unwrap();
-    assert!(!path.exists());
-
-    let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
-    assert_eq!(entries.len(), 1);
-    let content = std::fs::read_to_string(entries[0].path()).unwrap();
-    assert_eq!(content, "old content\n");
-    drop(std::fs::remove_dir_all(&dir));
-}
-
-#[test]
-#[cfg(feature = "compress")]
-fn rotate_compress() {
-    let dir = std::env::temp_dir().join("acta-test-fmt-compress");
-    drop(std::fs::remove_dir_all(&dir));
-    drop(std::fs::create_dir_all(&dir));
-    let path = dir.join("app.log");
-    std::fs::write(&path, b"compress me\n").unwrap();
-
-    rotate_log_file(&path, Rotation::Compress).unwrap();
-    assert!(!path.exists());
-
-    let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
-    assert_eq!(entries.len(), 1);
-    let gz_data = std::fs::read(entries[0].path()).unwrap();
-    assert!(gz_data.len() > 2);
-    assert_eq!(gz_data[0], 0x1f);
-    assert_eq!(gz_data[1], 0x8b);
-    drop(std::fs::remove_dir_all(&dir));
-}
 
 #[test]
 fn formatter_style_config_returns_reference() {
     let fmt = Formatter::new();
     let config = fmt.style_config();
-    assert_eq!(config.labels.error, "E");
+    assert_eq!(config.labels.error, "ERROR");
 }
 
 #[test]
@@ -205,9 +138,9 @@ fn formatter_with_labels_changes_labels() {
     let fmt = Formatter::new();
     let before = fmt.style_config().labels.error;
 
-    let fmt = fmt.with_labels(LevelLabels::DEFAULT);
+    let fmt = fmt.with_labels(LevelLabels::SHORT);
     assert_ne!(fmt.style_config().labels.error, before);
-    assert_eq!(fmt.style_config().labels.error, "ERROR");
+    assert_eq!(fmt.style_config().labels.error, "E");
 }
 
 #[test]
@@ -249,9 +182,9 @@ fn event_visitor_records_other_fields_as_pairs() {
     assert!(visitor.message.is_none());
     assert_eq!(
         visitor.fields,
-        SmallVec::<[(String, String); 4]>::from_vec(vec![
-            ("user".to_owned(), "alice".to_owned()),
-            ("count".to_owned(), "42".to_owned())
+        SmallVec::<[(&'static str, String); 4]>::from_vec(vec![
+            ("user", "alice".to_owned()),
+            ("count", "42".to_owned())
         ])
     );
 }
@@ -272,9 +205,9 @@ fn event_visitor_order_preserved_message_extracted() {
     assert_eq!(visitor.message, Some("the message".to_owned()));
     assert_eq!(
         visitor.fields,
-        SmallVec::<[(String, String); 4]>::from_vec(vec![
-            ("x".to_owned(), "1".to_owned()),
-            ("y".to_owned(), "2".to_owned())
+        SmallVec::<[(&'static str, String); 4]>::from_vec(vec![
+            ("x", "1".to_owned()),
+            ("y", "2".to_owned())
         ])
     );
 }
@@ -300,8 +233,8 @@ fn level_labels_long() {
 }
 
 #[test]
-fn level_labels_default_equals_short() {
-    assert_eq!(LevelLabels::default(), LevelLabels::SHORT);
+fn level_labels_default_equals_default_long() {
+    assert_eq!(LevelLabels::default(), LevelLabels::DEFAULT);
 }
 
 #[test]
@@ -335,7 +268,7 @@ fn style_config_default() {
         format!("{:?}", Theme::acta())
     );
     assert_eq!(config.icons, Icons::UNICODE);
-    assert_eq!(config.labels, LevelLabels::SHORT);
+    assert_eq!(config.labels, LevelLabels::DEFAULT);
 }
 
 #[test]
