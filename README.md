@@ -164,21 +164,19 @@ let config = Config {
 };
 ```
 
-You can change filters after initialization through `ReloadHandle`.
+You can change filters after initialization directly through `TracingGuard`.
 
 ```rust
 use acta::{init, Filter, Level, Config, Result};
 
 fn main() -> Result<()> {
-    let guard = init(Config::default())?;
+    let mut guard = init(Config::default())?;
 
-    guard.reload_handle_mut().set_level(Level::Debug)?;
-    guard
-        .reload_handle_mut()
-        .set_target_level("my_crate", Level::Trace)?;
-    guard.reload_handle_mut().remove_target_level("my_crate")?;
-    guard.reload_handle_mut().reload("info,my_crate=trace")?;
-    guard.reload_handle_mut().set_filter(
+    guard.set_level(Level::Debug)?;
+    guard.set_target_level("my_crate", Level::Trace)?;
+    guard.remove_target_level("my_crate")?;
+    guard.reload("info,my_crate=trace")?;
+    guard.set_filter(
         Filter::new(Level::Warn).with_target("my_crate", Level::Debug),
     )?;
 
@@ -275,10 +273,22 @@ let custom_labels = LevelLabels::custom("ERR", "WRN", "INF", "DBG", "TRC");
 
 ## Runtime style reload
 
-`ReloadHandle` can reload themes, icons, and labels via `with_style`. `init` configures runtime filter
-reloads, but not runtime style reloads.
+`TracingGuard` can reload themes, icons, and labels via `with_style` directly on the returned guard:
 
-For style reloads, build the subscriber manually:
+```rust
+use acta::{init, Config, Theme, Result};
+
+fn main() -> Result<()> {
+    let mut guard = init(Config::default())?;
+
+    // Reload the theme dynamically at runtime!
+    guard.with_style(|s| s.theme = Theme::dracula());
+
+    Ok(())
+}
+```
+
+If you build the subscriber manually, `build_reload_filter` returns a `TracingGuard` that also supports style reloading:
 
 ```rust
 use acta::{
@@ -291,14 +301,14 @@ fn main() -> Result<()> {
     let formatter = Formatter::new().with_theme(Theme::monokai());
     let style = *formatter.style_config();
     let console_layer = build_console_layer_with(&Console::default(), &formatter);
-    let (filter_layer, mut reload_handle) = build_reload_filter(Level::Info, style);
+    let (filter_layer, mut guard) = build_reload_filter(Level::Info, style);
 
     let subscriber = tracing_subscriber::registry()
         .with(console_layer)
         .with(filter_layer);
     tracing::subscriber::set_global_default(subscriber)?;
 
-    reload_handle.with_style(|s| s.theme = Theme::dracula());
+    guard.with_style(|s| s.theme = Theme::dracula());
 
     Ok(())
 }
