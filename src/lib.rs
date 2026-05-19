@@ -51,10 +51,7 @@ pub enum ActaError {
 
 pub type Result<T> = std::result::Result<T, ActaError>;
 
-pub use crate::builder::{
-    SubscriberParts, build_layer, build_reload_filter,
-    build_subscriber,
-};
+pub use crate::builder::{SubscriberParts, build_layer, build_reload_filter, build_subscriber};
 
 pub use crate::builder::init;
 

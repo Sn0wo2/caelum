@@ -1,8 +1,6 @@
 pub use crate::TracingGuard;
 pub use crate::builder::init;
-pub use crate::builder::{
-    build_layer, build_reload_filter, build_subscriber,
-};
+pub use crate::builder::{build_layer, build_reload_filter, build_subscriber};
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use crate::config::AsyncMode;
 pub use crate::config::{Config, Icons, LevelLabels, Style, Theme, Writer, WriterTarget};

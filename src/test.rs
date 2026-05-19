@@ -24,9 +24,11 @@ pub(crate) fn build_reload_filter(
     let async_stderr_layer = None;
     let file_layer = None;
 
-    stdout_layer = Some(tracing_subscriber::fmt::Layer::default()
-        .with_writer(io::sink)
-        .boxed());
+    stdout_layer = Some(
+        tracing_subscriber::fmt::Layer::default()
+            .with_writer(io::sink)
+            .boxed(),
+    );
 
     let inner_subscriber = tracing_subscriber::Registry::default()
         .with(stdout_layer)
@@ -109,7 +111,6 @@ fn build_layer_with_nerd_icons() {
     let w = Writer::default();
     let _layer = build_layer::<tracing_subscriber::Registry>(&w);
 }
-
 
 #[test]
 fn reload_handle_with_style_config() {

@@ -112,7 +112,6 @@ fn format_path_strips_src() {
     assert!(!result.contains("src/"));
 }
 
-
 #[test]
 fn formatter_style_config_returns_reference() {
     let fmt = Formatter::new();

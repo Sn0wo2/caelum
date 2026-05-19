@@ -9,7 +9,6 @@ pub fn rgb_to_owo(rgb: (u8, u8, u8), depth: ColorDepth) -> OwoStyle {
     let g = rgb.1;
     let b = rgb.2;
 
-
     match depth {
         ColorDepth::TrueColor => OwoStyle::new().color(DynColors::Rgb(r, g, b)),
         ColorDepth::Ansi256 => {
@@ -33,20 +32,19 @@ pub fn rgb_to_owo_on(r: u8, g: u8, b: u8, depth: ColorDepth) -> OwoStyle {
         ColorDepth::TrueColor => OwoStyle::new()
             .color(DynColors::Rgb(dr, dg, db))
             .on_color(DynColors::Rgb(r, g, b)),
-        ColorDepth::Ansi256 => {
-            OwoStyle::new()
-                .color(DynColors::Xterm(XtermColors::from(ansi256_from_rgb((dr, dg, db)))))
-                .on_color(DynColors::Xterm(XtermColors::from(ansi256_from_rgb((r, g, b)))))
-        }
-        ColorDepth::Ansi16 => {
-            OwoStyle::new()
-                .color(DynColors::Ansi(rgb_to_ansi16(dr, dg, db)))
-                .on_color(DynColors::Ansi(rgb_to_ansi16(r, g, b)))
-        }
+        ColorDepth::Ansi256 => OwoStyle::new()
+            .color(DynColors::Xterm(XtermColors::from(ansi256_from_rgb((
+                dr, dg, db,
+            )))))
+            .on_color(DynColors::Xterm(XtermColors::from(ansi256_from_rgb((
+                r, g, b,
+            ))))),
+        ColorDepth::Ansi16 => OwoStyle::new()
+            .color(DynColors::Ansi(rgb_to_ansi16(dr, dg, db)))
+            .on_color(DynColors::Ansi(rgb_to_ansi16(r, g, b))),
         ColorDepth::NoColor => OwoStyle::new(),
     }
 }
-
 
 pub fn theme_fg_dimmed(rgb: (u8, u8, u8), depth: ColorDepth) -> OwoStyle {
     rgb_to_owo((rgb.0 >> 2, rgb.1 >> 2, rgb.2 >> rgb.2 >> 2), depth)

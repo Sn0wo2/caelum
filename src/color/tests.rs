@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use ansi_colours::ansi256_from_rgb;
-use owo_colors::AnsiColors;
+    use owo_colors::AnsiColors;
 
     use crate::color::mapping::rgb_to_ansi16;
 
