@@ -34,3 +34,6 @@ dist/
 
 # omo
 .sisyphus/
+
+# acta
+data/

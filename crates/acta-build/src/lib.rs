@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use walkdir::WalkDir;
 
 pub fn walk_src_max_width(dir: &str, strip_prefix: &str) -> Result<usize, String> {
@@ -13,7 +12,7 @@ pub fn walk_src_max_width(dir: &str, strip_prefix: &str) -> Result<usize, String
     }
 
     let max = entries
-        .par_iter()
+        .iter()
         .map(|e| {
             let display = e.path().to_string_lossy().replace('\\', "/");
             display
@@ -23,8 +22,7 @@ pub fn walk_src_max_width(dir: &str, strip_prefix: &str) -> Result<usize, String
                 .len()
         })
         .max()
-        .unwrap_or(0)
-        + 4;
+        .unwrap(); // safe
 
-    Ok(max)
+    Ok(max + 4)
 }
