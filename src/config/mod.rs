@@ -1,6 +1,5 @@
 #[cfg(feature = "nerd")]
 use nerd_font_symbols::{cod, fa, ple};
-use smart_default::SmartDefault;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -129,8 +128,9 @@ impl Icons {
         span_join: fa::FA_ANGLES_RIGHT,
     };
 
-    pub fn is_nerd(&self) -> bool {
-        self.bracket_open != "["
+    pub const fn is_nerd(&self) -> bool {
+        let bytes = self.bracket_open.as_bytes();
+        !(bytes.len() == 1 && bytes[0] == b'[')
     }
 }
 
@@ -178,7 +178,6 @@ impl Theme {
             trace,
         }
     }
-    /// ACTA (default).
     ///
     /// light blue, pink, white, bright red, gold, off white
     /// with some dimmed for terminal readability.
@@ -196,7 +195,6 @@ impl Theme {
         )
     }
 
-    /// Monokai.
     ///
     /// cyan, pink, white, bright red, gold, gray
     /// with some dimmed for terminal readability.
@@ -212,7 +210,6 @@ impl Theme {
         Self::new(CYAN, PINK, WHITE, BRIGHT_RED, GOLD, CYAN, PINK, GRAY)
     }
 
-    /// Dracula.
     ///
     /// cyan, pink, white, bright red, gold, gray
     /// with some dimmed for terminal readability.
@@ -228,7 +225,6 @@ impl Theme {
         Self::new(CYAN, PINK, WHITE, BRIGHT_RED, GOLD, CYAN, PINK, GRAY)
     }
 
-    /// Nord.
     ///
     /// blue, green, white, red, yellow, gray
     /// with some dimmed for terminal readability.
@@ -244,7 +240,6 @@ impl Theme {
         Self::new(BLUE, GREEN, WHITE, RED, YELLOW, BLUE, GREEN, GRAY)
     }
 
-    /// Catppuccin Mocha.
     ///
     /// blue, mauve, text, red, yellow, gray
     /// with some dimmed for terminal readability.
@@ -260,7 +255,6 @@ impl Theme {
         Self::new(BLUE, MAUVE, TEXT, RED, YELLOW, BLUE, MAUVE, GRAY)
     }
 
-    /// Gruvbox.
     ///
     /// aqua, orange, light, red, yellow, gray
     /// with some dimmed for terminal readability.
@@ -276,7 +270,6 @@ impl Theme {
         Self::new(AQUA, ORANGE, LIGHT, RED, YELLOW, AQUA, ORANGE, GRAY)
     }
 
-    /// One Dark.
     ///
     /// blue, purple, white, red, yellow, gray
     /// with some dimmed for terminal readability.
@@ -292,7 +285,6 @@ impl Theme {
         Self::new(BLUE, PURPLE, WHITE, RED, YELLOW, BLUE, PURPLE, GRAY)
     }
 
-    /// Tokyo Night.
     ///
     /// blue, purple, white, red, yellow, gray
     /// with some dimmed for terminal readability.
@@ -316,50 +308,37 @@ impl Default for Theme {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-#[non_exhaustive]
 pub struct Style {
     pub theme: Theme,
     pub icons: Icons,
     pub labels: LevelLabels,
 }
-/// Per-format tracing_subscriber layer configuration.
-///
-/// Controls which metadata fields appear in log output.
-/// Each Format variant (Pretty, Compact, Json) carries its own LayerConfig,
-/// allowing full customization of the underlying layer.
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerConfig {
-    /// Show the log target (module path)
     #[cfg_attr(feature = "serde", serde(default))]
     pub target: bool,
-    /// Show the source file
     #[cfg_attr(feature = "serde", serde(default))]
     pub file: bool,
-    /// Show the line number
     #[cfg_attr(feature = "serde", serde(default))]
     pub line_number: bool,
-    /// Show the current span name
     #[cfg_attr(feature = "serde", serde(default))]
     pub current_span: bool,
-    /// Show span list (parent spans)
     #[cfg_attr(feature = "serde", serde(default))]
     pub span_list: bool,
     /// Flatten event into a single line (Json only)
     #[cfg_attr(feature = "serde", serde(default))]
     pub flatten_event: bool,
-    /// Show thread IDs
     #[cfg_attr(feature = "serde", serde(default))]
     pub thread_ids: bool,
-    /// Show thread names
     #[cfg_attr(feature = "serde", serde(default))]
     pub thread_names: bool,
 }
 
 impl LayerConfig {
-    /// Default config for Pretty format
     pub const fn pretty() -> Self {
         Self {
             target: true,
@@ -373,7 +352,6 @@ impl LayerConfig {
         }
     }
 
-    /// Default config for Compact format
     pub const fn compact() -> Self {
         Self {
             target: false,
@@ -387,7 +365,6 @@ impl LayerConfig {
         }
     }
 
-    /// Default config for Json format
     pub const fn json() -> Self {
         Self {
             target: false,
@@ -408,8 +385,7 @@ impl Default for LayerConfig {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Format {
@@ -478,10 +454,9 @@ impl Level {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Filter {
-    /// default level for all targets if not specified
     level: Level,
 
-    targets: HashMap<String, Level>,
+    targets: HashMap<compact_str::CompactString, Level>,
 }
 
 impl Filter {
@@ -496,7 +471,7 @@ impl Filter {
         &self.level
     }
 
-    pub fn with_target(&mut self, target: impl Into<String>, level: impl Into<Level>) -> &mut Self {
+    pub fn with_target(&mut self, target: impl Into<compact_str::CompactString>, level: impl Into<Level>) -> &mut Self {
         self.targets.insert(target.into(), level.into());
         self
     }
@@ -538,45 +513,19 @@ impl<'de> serde::Deserialize<'de> for Level {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct File {
-    pub path: PathBuf,
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub rotation: Rotation,
-}
-
-impl File {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: path.into(),
-            ..Default::default()
-        }
-    }
-    pub const fn with_rotation(mut self, rotation: Rotation) -> Self {
-        self.rotation = rotation;
-        self
-    }
-}
-
-impl Default for File {
-    fn default() -> Self {
-        Self {
-            path: PathBuf::from("app.log"),
-            rotation: Rotation::default(),
-        }
-    }
-}
-
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
-#[derive(Clone, Debug, Default)]
-#[non_exhaustive]
-pub enum Writer {
-    #[default]
+pub enum WriterTarget {
     Stdout,
     Stderr,
+    #[cfg(feature = "file")]
+    File {
+        path: PathBuf,
+        #[cfg_attr(feature = "serde", serde(default))]
+        rotation: Rotation,
+    },
     #[cfg(any(feature = "custom-async", feature = "native-async"))]
     AsyncStdout(AsyncMode),
     #[cfg(any(feature = "custom-async", feature = "native-async"))]
@@ -584,8 +533,7 @@ pub enum Writer {
 }
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum AsyncMode {
@@ -600,150 +548,44 @@ pub enum AsyncMode {
 impl Default for AsyncMode {
     fn default() -> Self {
         #[cfg(feature = "custom-async")]
-        {
-            Self::Custom
-        }
+        return Self::Custom;
         #[cfg(all(feature = "native-async", not(feature = "custom-async")))]
-        {
-            Self::Native
-        }
+        return Self::Native;
     }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, SmartDefault)]
-#[non_exhaustive]
-pub struct Console {
+#[derive(Clone, Debug)]
+pub struct Writer {
     pub format: Format,
-
     #[cfg_attr(feature = "serde", serde(default))]
-    #[default(true)]
     pub ansi: bool,
-
     #[cfg_attr(feature = "serde", serde(default))]
-    #[default(None)]
     pub color_depth: Option<ColorDepth>,
-
     #[cfg_attr(feature = "serde", serde(default))]
-    #[default(Writer::default())]
-    pub writer: Writer,
-
-    #[cfg_attr(feature = "serde", serde(default))]
-    #[default(true)]
     pub show_path: bool,
-
     #[cfg_attr(feature = "serde", serde(default))]
-    #[default(true)]
     pub show_spans: bool,
-
     #[cfg_attr(feature = "serde", serde(default))]
     pub time_format: Option<String>,
-
     #[cfg_attr(feature = "serde", serde(skip))]
-    #[default(Style::default())]
     pub style: Style,
+    pub target: WriterTarget,
 }
 
-impl Console {
-    pub fn new() -> Self {
-        Self::default()
-    }
 
-    pub fn builder() -> ConsoleBuilder {
-        ConsoleBuilder::default()
-    }
-}
-
-#[derive(Default, Debug)]
-#[must_use]
-pub struct ConsoleBuilder {
-    format: Option<Format>,
-    ansi: Option<bool>,
-    color_depth: Option<ColorDepth>,
-    writer: Option<Writer>,
-    show_path: Option<bool>,
-    show_spans: Option<bool>,
-    time_format: Option<String>,
-    style: Option<Style>,
-}
-
-impl ConsoleBuilder {
-    pub const fn format(mut self, format: Format) -> Self {
-        self.format = Some(format);
-        self
-    }
-
-    pub const fn ansi(mut self, ansi: bool) -> Self {
-        self.ansi = Some(ansi);
-        self
-    }
-
-    pub const fn color_depth(mut self, depth: ColorDepth) -> Self {
-        self.color_depth = Some(depth);
-        self
-    }
-
-    pub const fn writer(mut self, writer: Writer) -> Self {
-        self.writer = Some(writer);
-        self
-    }
-
-    pub const fn show_path(mut self, show: bool) -> Self {
-        self.show_path = Some(show);
-        self
-    }
-
-    pub const fn show_spans(mut self, show: bool) -> Self {
-        self.show_spans = Some(show);
-        self
-    }
-
-    pub fn time_format(mut self, fmt: impl Into<String>) -> Self {
-        self.time_format = Some(fmt.into());
-        self
-    }
-
-    pub fn style(mut self, style: impl Into<Style>) -> Self {
-        self.style = Some(style.into());
-        self
-    }
-
-    pub fn build(self) -> Console {
-        let defaults = Console::default();
-
-        let style = {
-            let mut s = self.style.unwrap_or(defaults.style);
-            #[cfg(feature = "nerd")]
-            {
-                if depth::detect_nerd() {
-                    s.icons = Icons::NERD;
-                }
-            }
-            s
-        };
-
-        Console {
-            format: self.format.unwrap_or(defaults.format),
-            ansi: self.ansi.unwrap_or(defaults.ansi),
-            color_depth: self.color_depth.or(defaults.color_depth).or_else(|| {
-                let writer = self.writer.as_ref().unwrap_or(&defaults.writer);
-                if self.ansi.unwrap_or(defaults.ansi) {
-                    Some(detect(writer))
-                } else {
-                    Some(ColorDepth::NoColor)
-                }
-            }),
-            writer: self.writer.unwrap_or(defaults.writer),
-            show_path: self.show_path.unwrap_or(defaults.show_path),
-            show_spans: self.show_spans.unwrap_or(defaults.show_spans),
-            time_format: self.time_format.or(defaults.time_format),
-            style,
+impl Default for Writer {
+    fn default() -> Self {
+        Self {
+            format: Format::default(),
+            ansi: true,
+            color_depth: None,
+            show_path: true,
+            show_spans: true,
+            time_format: None,
+            style: Style::default(),
+            target: WriterTarget::Stdout,
         }
-    }
-}
-impl From<ConsoleBuilder> for Console {
-    fn from(b: ConsoleBuilder) -> Self {
-        b.build()
     }
 }
 
@@ -752,10 +594,8 @@ impl From<ConsoleBuilder> for Console {
 #[non_exhaustive]
 pub struct Config {
     pub level: Level,
-    #[cfg_attr(feature = "serde", serde(default = "default_console"))]
-    pub console: Option<Console>,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub file: Option<File>,
+    pub writers: Vec<Writer>,
 }
 
 impl Config {
@@ -768,8 +608,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             level: Level::Info,
-            console: Some(Console::default()),
-            file: None,
+            writers: vec![Writer::default()],
         }
     }
 }
@@ -779,9 +618,7 @@ impl Default for Config {
 #[allow(clippy::module_name_repetitions)]
 pub struct ConfigBuilder {
     level: Option<Level>,
-    console: Option<Console>,
-    #[cfg(feature = "file")]
-    file: Option<File>,
+    writers: Vec<Writer>,
 }
 
 impl ConfigBuilder {
@@ -790,14 +627,8 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn console(mut self, console: impl Into<Console>) -> Self {
-        self.console = Some(console.into());
-        self
-    }
-
-    #[cfg(feature = "file")]
-    pub fn file(mut self, file: impl Into<File>) -> Self {
-        self.file = Some(file.into());
+    pub fn with_writer(mut self, writer: Writer) -> Self {
+        self.writers.push(writer);
         self
     }
 
@@ -805,11 +636,11 @@ impl ConfigBuilder {
         let defaults = Config::default();
         Config {
             level: self.level.unwrap_or(defaults.level),
-            console: self.console.or(defaults.console),
-            #[cfg(feature = "file")]
-            file: self.file.or(defaults.file),
-            #[cfg(not(feature = "file"))]
-            file: None,
+            writers: if self.writers.is_empty() {
+                defaults.writers
+            } else {
+                self.writers
+            },
         }
     }
 }
@@ -820,11 +651,6 @@ impl From<ConfigBuilder> for Config {
     }
 }
 
-#[cfg(feature = "serde")]
-#[allow(clippy::unnecessary_wraps)]
-fn default_console() -> Option<Console> {
-    Some(Console::default())
-}
-
 #[cfg(test)]
 mod test;
+

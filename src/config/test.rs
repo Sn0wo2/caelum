@@ -4,52 +4,49 @@ use super::*;
 fn config_default() {
     let config = Config::default();
     assert!(matches!(config.level, Level::Info));
-    assert!(config.console.is_some());
-    assert!(config.file.is_none());
-
-    let console = config.console.unwrap();
-    assert!(matches!(console.format, Format::Pretty(_)));
-    assert!(console.ansi);
-    assert!(matches!(console.writer, Writer::Stdout));
-    assert!(console.show_path);
-    assert!(console.show_spans);
-    assert!(console.time_format.is_none());
+    assert_eq!(config.writers.len(), 1);
+    let w = &config.writers[0];
+    assert!(matches!(w.format, Format::Pretty(_)));
+    assert!(w.ansi);
+    assert!(w.show_path);
+    assert!(w.show_spans);
+    assert!(w.time_format.is_none());
 }
 
 #[test]
-fn console_default() {
-    let cfg = Console::default();
-    assert!(matches!(cfg.format, Format::Pretty(_)));
-    assert!(cfg.ansi);
-    assert!(cfg.show_path);
-    assert!(cfg.show_spans);
-}
-
-#[test]
-fn console_builder() {
-    let cfg = Console::builder()
-        .format(Format::Json(LayerConfig::json()))
-        .ansi(false)
-        .show_path(false)
-        .show_spans(false)
-        .time_format("%Y")
-        .style(Style::default())
-        .build();
-    assert!(matches!(cfg.format, Format::Json(_)));
-    assert!(!cfg.ansi);
-    assert!(!cfg.show_path);
-    assert!(!cfg.show_spans);
-    assert_eq!(cfg.time_format, Some("%Y".to_string()));
+fn writer_default() {
+    let w = Writer::default();
+    assert!(matches!(w.format, Format::Pretty(_)));
+    assert!(w.ansi);
+    assert!(w.show_path);
+    assert!(w.show_spans);
+    assert!(matches!(w.target, WriterTarget::Stdout));
 }
 
 #[test]
 fn config_builder() {
     let cfg = Config::builder()
         .level(Level::Debug)
-        .console(Console::new())
+        .with_writer(Writer::default())
         .build();
     assert_eq!(cfg.level.as_directive(), "debug");
-    assert!(cfg.console.is_some());
+    assert_eq!(cfg.writers.len(), 1);
+}
+
+#[test]
+fn config_builder_multiple_writers() {
+    let cfg = Config::builder()
+        .level(Level::Info)
+        .with_writer(Writer {
+            target: WriterTarget::Stdout,
+            ..Default::default()
+        })
+        .with_writer(Writer {
+            target: WriterTarget::Stderr,
+            ..Default::default()
+        })
+        .build();
+    assert_eq!(cfg.writers.len(), 2);
 }
 
 #[test]
@@ -123,4 +120,16 @@ fn filter_from_level() {
 fn filter_from_level_debug() {
     let filter: Filter = Level::Debug.into();
     assert_eq!(filter.as_directive(), "debug");
+}
+
+#[test]
+fn writer_file_target() {
+    let w = Writer {
+        target: WriterTarget::File {
+            path: PathBuf::from("app.log"),
+            rotation: Rotation::Rename,
+        },
+        ..Default::default()
+    };
+    assert!(matches!(w.target, WriterTarget::File { .. }));
 }
