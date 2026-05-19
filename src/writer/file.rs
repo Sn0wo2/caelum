@@ -21,11 +21,13 @@ impl MakeWriter<'_> for FileWriter {
 }
 
 impl FileWriter {
+    #[allow(clippy::single_call_fn)]
     pub(crate) const fn new(writer: tracing_appender::non_blocking::NonBlocking) -> Self {
         Self { writer }
     }
 }
 
+#[allow(clippy::single_call_fn)]
 pub(crate) fn build_file_layer(
     path: &Path,
     rotation: Rotation,
@@ -96,6 +98,7 @@ pub fn rotate_log_file(path: &Path, mode: Rotation) -> Result<()> {
     }
 }
 
+#[cfg_attr(not(feature = "compress"), allow(clippy::single_call_fn))]
 fn now_timestamp() -> String {
     chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }

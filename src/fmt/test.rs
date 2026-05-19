@@ -116,7 +116,7 @@ fn format_path_strips_src() {
 fn formatter_style_config_returns_reference() {
     let fmt = Formatter::new();
     let config = fmt.style_config();
-    assert_eq!(config.labels.error, "ERROR");
+    assert_eq!(config.labels.error, "E");
 }
 
 #[test]
@@ -135,11 +135,10 @@ fn formatter_with_style_config_replaces_all() {
 #[test]
 fn formatter_with_labels_changes_labels() {
     let fmt = Formatter::new();
-    let before = fmt.style_config().labels.error;
-
-    let fmt = fmt.with_labels(LevelLabels::SHORT);
-    assert_ne!(fmt.style_config().labels.error, before);
     assert_eq!(fmt.style_config().labels.error, "E");
+
+    let fmt = fmt.with_labels(LevelLabels::DEFAULT);
+    assert_eq!(fmt.style_config().labels.error, "ERROR");
 }
 
 #[test]
@@ -232,8 +231,8 @@ fn level_labels_long() {
 }
 
 #[test]
-fn level_labels_default_equals_default_long() {
-    assert_eq!(LevelLabels::default(), LevelLabels::DEFAULT);
+fn level_labels_default_is_short() {
+    assert_eq!(LevelLabels::default(), LevelLabels::SHORT);
 }
 
 #[test]
@@ -267,7 +266,7 @@ fn style_config_default() {
         format!("{:?}", Theme::acta())
     );
     assert_eq!(config.icons, Icons::UNICODE);
-    assert_eq!(config.labels, LevelLabels::DEFAULT);
+    assert_eq!(config.labels, LevelLabels::SHORT);
 }
 
 #[test]

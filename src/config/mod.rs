@@ -1,6 +1,7 @@
 #[cfg(feature = "nerd")]
 use nerd_font_symbols::{cod, fa, ple};
 use std::collections::HashMap;
+#[cfg(feature = "file")]
 use std::path::PathBuf;
 
 pub mod depth;
@@ -69,6 +70,7 @@ impl Default for LevelLabels {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Icons {
+    pub name: &'static str,
     pub bracket_open: &'static str,
     pub bracket_close: &'static str,
     pub time_bracket_open: &'static str,
@@ -82,6 +84,7 @@ pub struct Icons {
 impl Icons {
     #[allow(clippy::too_many_arguments)]
     pub const fn custom(
+        name: &'static str,
         bracket_open: &'static str,
         bracket_close: &'static str,
         time_bracket_open: &'static str,
@@ -92,6 +95,7 @@ impl Icons {
         span_join: &'static str,
     ) -> Self {
         Self {
+            name,
             bracket_open,
             bracket_close,
             time_bracket_open,
@@ -104,6 +108,7 @@ impl Icons {
     }
 
     pub const UNICODE: Self = Self {
+        name: "unicode",
         #[rustfmt::skip] // 让下面两个括号可以对齐
         bracket_open:  "[",
         bracket_close: "]",
@@ -118,6 +123,7 @@ impl Icons {
 
     #[cfg(feature = "nerd")]
     pub const NERD: Self = Self {
+        name: "nerd",
         bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THICK,
         bracket_close: ple::PLE_RIGHT_HALF_CIRCLE_THICK,
         time_bracket_open: ple::PLE_LEFT_HALF_CIRCLE_THIN,
@@ -127,11 +133,6 @@ impl Icons {
         span_delimiter: cod::COD_EXPORT,
         span_join: fa::FA_ANGLES_RIGHT,
     };
-
-    pub const fn is_nerd(&self) -> bool {
-        let bytes = self.bracket_open.as_bytes();
-        !(bytes.len() == 1 && bytes[0] == b'[')
-    }
 }
 
 impl Default for Icons {
@@ -156,7 +157,7 @@ pub struct Theme {
 }
 
 impl Theme {
-    #[allow(clippy::too_many_arguments, clippy::missing_const_for_fn)]
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         accent: Rgb,
         secondary: Rgb,
@@ -308,6 +309,7 @@ impl Default for Theme {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[allow(clippy::exhaustive_structs)]
 pub struct Style {
     pub theme: Theme,
     pub icons: Icons,
@@ -400,7 +402,7 @@ pub enum Format {
 
 impl Default for Format {
     fn default() -> Self {
-        Self::Pretty(LayerConfig::pretty())
+        Self::Compact(LayerConfig::compact())
     }
 }
 
@@ -570,6 +572,7 @@ impl Default for AsyncMode {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::exhaustive_structs)]
 #[derive(Clone, Debug)]
 pub struct Writer {
     pub format: Format,
