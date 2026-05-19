@@ -63,7 +63,7 @@ Keep the returned guard alive for as long as logging is needed. Dropping it stop
 | `file`         | Yes                | Enables `init`, `TracingGuard`, `build_file_layer`, and file logging through `tracing-appender`. |
 | `compress`     | No                 | Enables `Rotation::Compress` for gzip-compressing old log files.                                         |
 | `serde`        | No                 | Adds `Serialize` / `Deserialize` support for config types.                                               |
-| `nerd`         | No                 | Enables Nerd Font icons through `Icons::nerd()` and uses them by default.                                |
+| `nerd`         | No                 | Enables Nerd Font icons through `Icons::NERD` and uses them by default.                         |
 | `custom-async` | No                 | Enables Tokio-backed async console writers and exports `AsyncWriter` helpers.                            |
 | `native-async` | No                 | Enables non-blocking console writers backed by `tracing-appender`.                                       |
 | `async`        | No                 | Enables both `custom-async` and `native-async`.                                                          |
@@ -75,29 +75,27 @@ If you disable default features, `init` is unavailable unless the `file` feature
 `Config::default()` uses:
 
 - **Level**: `Level::Info`
-- **Console**: enabled with `Format::Compact`
-- **Console writer**: `Writer::Stdout`
-- **ANSI colors**: enabled
+- **Format**: `Format::Compact` (custom formatter with themes)
+- **Writer**: `Writer::Stdout` with ANSI colors enabled
 - **Path and span display**: enabled
 - **File logging**: disabled
 
 ```rust
 use acta::{
-    init, Console, Format, Level, Config, Result, Writer,
+    init, Format, Level, Config, Result, Writer,
 };
 
 fn main() -> Result<()> {
     let config = Config {
         level: Level::Debug,
-        console: Some(Console {
+        writers: vec![Writer {
             format: Format::Compact,
             ansi: true,
-            writer: Writer::Stdout,
             show_path: true,
             show_spans: true,
             time_format: Some("%Y-%m-%d %H:%M:%S".to_string()),
             ..Default::default()
-        }),
+        }],
         ..Default::default()
     };
 
@@ -114,7 +112,6 @@ fn main() -> Result<()> {
 | `Format::Compact` | Default themed formatter with optional path and span display.      |
 | `Format::Pretty`  | `tracing-subscriber` pretty formatter with file and line metadata. |
 | `Format::Json`    | Flattened JSON events without ANSI colors.                         |
-
 ## File logging
 
 File logging is available with the `file` feature, which is enabled by default. File logs are written as flattened JSON
@@ -122,18 +119,21 @@ events.
 
 ```rust
 use acta::{
-    init, Console, File, Level, Config, Result, Rotation,
+    init, Level, Config, Result, Rotation, Writer, WriterTarget,
 };
 use std::path::PathBuf;
 
 fn main() -> Result<()> {
     let config = Config {
         level: Level::Info,
-        console: Some(Console::default()),
-        file: Some(File {
-            path: PathBuf::from("logs/app.log"),
-            rotation: Rotation::Rename,
-        }),
+        writers: vec![Writer {
+            format: Format::Compact,
+            target: WriterTarget::File {
+                path: PathBuf::from("logs/app.log"),
+                rotation: Rotation::Rename,
+            },
+            ..Default::default()
+        }],
         ..Default::default()
     };
 
@@ -205,7 +205,7 @@ use acta::{Formatter, Icons, LevelLabels, Theme};
 
 let formatter = Formatter::new()
     .with_theme(Theme::tokyo_night())
-    .with_icons(Icons::unicode())
+    .with_icons(Icons::UNICODE)
     .with_labels(LevelLabels::long())
     .with_time_format("%H:%M:%S")
     .with_show_path(true)
@@ -218,7 +218,7 @@ The default path width is generated at build time.
 
 | Theme                       | Description      |
 | --------------------------- | ---------------- |
-| `Theme::trans_flag()`       | Default          |
+| `Theme::acta()`             | Default          |
 | `Theme::monokai()`          | Monokai          |
 | `Theme::dracula()`          | Dracula          |
 | `Theme::nord()`             | Nord             |
@@ -249,7 +249,7 @@ let custom = Theme::new(
 ```rust
 use acta::{Icons, LevelLabels};
 
-let unicode_icons = Icons::unicode();
+let unicode_icons = Icons::UNICODE;
 let short_labels = LevelLabels::short();
 let long_labels = LevelLabels::long();
 ```
@@ -259,7 +259,7 @@ With the `nerd` feature enabled:
 ```rust
 use acta::Icons;
 
-let nerd_icons = Icons::nerd();
+let nerd_icons = Icons::NERD;
 ```
 
 Custom icons and labels:
@@ -267,7 +267,7 @@ Custom icons and labels:
 ```rust
 use acta::{Icons, LevelLabels};
 
-let custom_icons = Icons::custom("[", "]", "{", "}", "|", ">", "->", "·");
+let custom_icons = Icons::custom("custom", "[", "]", "{", "}", "|", ">", "->", "·");
 let custom_labels = LevelLabels::custom("ERR", "WRN", "INF", "DBG", "TRC");
 ```
 
@@ -287,20 +287,22 @@ fn main() -> Result<()> {
     Ok(())
 }
 ```
-
 If you build the subscriber manually, `build_reload_filter` returns a `TracingGuard` that also supports style reloading:
 
 ```rust
 use acta::{
-    build_console_layer_with, build_reload_filter, Formatter, Console, Level, Result,
-    Theme,
+    build_reload_filter, Formatter, Level, Result,
+    Theme, Style, Writer,
 };
 use tracing_subscriber::prelude::*;
 
 fn main() -> Result<()> {
     let formatter = Formatter::new().with_theme(Theme::monokai());
     let style = *formatter.style_config();
-    let console_layer = build_console_layer_with(&Console::default(), &formatter);
+    let console_layer = tracing_subscriber::fmt::Layer::default()
+        .with_writer(std::io::stdout)
+        .event_format(formatter)
+        .boxed();
     let (filter_layer, mut guard) = build_reload_filter(Level::Info, style);
 
     let subscriber = tracing_subscriber::registry()
@@ -313,7 +315,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 ```
-
 This low-level setup requires adding `tracing-subscriber` as a direct dependency.
 
 ## Async console writers
@@ -325,16 +326,16 @@ add Tokio as a direct dependency with the required runtime and macro features.
 
 ```rust
 use acta::{
-    init, AsyncMode, Console, Config, Result, Writer,
+    init, AsyncMode, Config, Result, Writer, WriterTarget,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = Config {
-        console: Some(Console {
-            writer: Writer::AsyncStdout(AsyncMode::Custom),
+        writers: vec![Writer {
+            target: WriterTarget::AsyncStdout(AsyncMode::Custom),
             ..Default::default()
-        }),
+        }],
         ..Default::default()
     };
 

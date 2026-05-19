@@ -8,6 +8,7 @@ use smallvec::SmallVec;
 
 use std::fmt;
 use std::fmt::Write;
+use std::sync::Arc;
 
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::fmt::FormattedFields;
@@ -24,8 +25,6 @@ pub(crate) struct LevelStyles {
     bracket_bg: OwoStyle,
     label: OwoStyle,
 }
-
-use std::sync::Arc;
 
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
 
@@ -51,8 +50,22 @@ impl Default for Formatter {
 impl Formatter {
     #[must_use]
     pub fn new() -> Self {
-        let style = Arc::new(arc_swap::ArcSwap::new(Arc::new(Style::default())));
+        Self {
+            time_format: String::from("%H:%M:%S"),
+            path_width: BUILD_PATH_WIDTH,
+            show_path: true,
+            show_spans: true,
+            style: Arc::new(arc_swap::ArcSwap::new(Arc::new(Style::default()))),
+            color_depth: ColorDepth::TrueColor,
+        }
+    }
 
+    /// Creates a Formatter that shares its style state with an existing handle.
+    /// All builder methods (`with_theme`, `with_icons`, etc.) will write through
+    /// this handle, and any future writes to the handle (e.g. via TracingGuard::with_style)
+    /// are visible immediately in `format_event`.
+    #[must_use]
+    pub fn new_with_handle(style: Arc<arc_swap::ArcSwap<Style>>) -> Self {
         Self {
             time_format: String::from("%H:%M:%S"),
             path_width: BUILD_PATH_WIDTH,
@@ -63,9 +76,18 @@ impl Formatter {
         }
     }
 
+    /// Returns a copy of the current style configuration.
     #[must_use]
     pub fn style_config(&self) -> Style {
         **self.style.load()
+    }
+
+    /// Returns a clone of the internal style handle for sharing with TracingGuard.
+    /// When TracingGuard modifies the handle (via `with_style`), all Formatters
+    /// sharing this handle will see the update on the next format_event call.
+    #[must_use]
+    pub fn style_handle(&self) -> Arc<arc_swap::ArcSwap<Style>> {
+        self.style.clone()
     }
 
     #[must_use]
@@ -313,7 +335,6 @@ where
         event: &Event<'_>,
     ) -> fmt::Result {
         let config = self.style.load();
-        let is_nerd = config.icons.is_nerd();
 
         let level = event.metadata().level();
 
@@ -337,10 +358,9 @@ where
             }
         };
 
-        let fg_style = if is_nerd {
-            ls.bracket_fg
-        } else {
-            ls.bracket_bg
+        let fg_style = match config.icons.name {
+            "nerd" => ls.bracket_fg,
+            _ => ls.bracket_bg,
         };
 
         write!(

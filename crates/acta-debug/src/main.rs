@@ -58,7 +58,7 @@ fn run_with_reload(
     level: Level,
     f: impl FnOnce(&mut acta::TracingGuard),
 ) {
-    let (filter_layer, mut handle) = build_reload_filter(level, style);
+    let (filter_layer, mut guard) = build_reload_filter(level, style);
     let subscriber = tracing_subscriber::Registry::default()
         .with(Some(build_layer::<tracing_subscriber::Registry>(w)))
         .with(none_layer())
@@ -66,9 +66,8 @@ fn run_with_reload(
         .with(none_layer())
         .with(none_layer())
         .with(filter_layer);
-    tracing::subscriber::with_default(subscriber, || f(&mut handle));
+    tracing::subscriber::with_default(subscriber, || f(&mut guard));
 }
-
 fn emit_demo(label: &str) {
     tracing::info!("{label}: info");
     tracing::warn!(user = "alice", count = 42, "{label}: warn");
@@ -96,7 +95,10 @@ fn emit_spans() {
 static ICONS: LazyLock<SmallVec<[(&str, Icons); 3]>> = LazyLock::new(|| {
     smallvec![
         ("unicode", Icons::UNICODE),
-        ("no-icons", Icons::custom("", "", "", "", "", "", "", "")),
+        (
+            "no-icons",
+            Icons::custom("no-icons", "", "", "", "", "", "", "", "")
+        ),
         ("nerd", Icons::NERD),
     ]
 });

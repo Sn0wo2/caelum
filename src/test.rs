@@ -18,17 +18,15 @@ pub(crate) fn build_reload_filter(
     TracingGuard,
     SubscriberWithBoth,
 ) {
-    let mut stdout_layer = None;
-    let stderr_layer = None;
-    let async_stdout_layer = None;
-    let async_stderr_layer = None;
-    let file_layer = None;
-
-    stdout_layer = Some(
+    let stdout_layer = Some(
         tracing_subscriber::fmt::Layer::default()
             .with_writer(io::sink)
             .boxed(),
     );
+    let stderr_layer = None;
+    let async_stdout_layer = None;
+    let async_stderr_layer = None;
+    let file_layer = None;
 
     let inner_subscriber = tracing_subscriber::Registry::default()
         .with(stdout_layer)
@@ -45,7 +43,7 @@ pub(crate) fn build_reload_filter(
 
     let shared_state = std::sync::Arc::new(arc_swap::ArcSwap::new(std::sync::Arc::new(style)));
     let reload_handle = TracingGuard {
-        raw: env_handle,
+        raw: builder::ReloadHandle(env_handle),
         filter,
         style: shared_state,
         #[cfg(feature = "file")]

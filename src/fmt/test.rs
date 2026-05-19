@@ -246,16 +246,16 @@ fn icons_unicode() {
 }
 
 #[test]
-fn icons_is_nerd_returns_false_for_unicode() {
+fn icons_name_unicode() {
     let icons = Icons::UNICODE;
-    assert!(!icons.is_nerd());
+    assert_eq!(icons.name, "unicode");
 }
 
 #[cfg(feature = "nerd")]
 #[test]
-fn icons_is_nerd_returns_true_for_nerd() {
+fn icons_name_nerd() {
     let icons = Icons::NERD;
-    assert!(icons.is_nerd());
+    assert_eq!(icons.name, "nerd");
 }
 
 #[test]

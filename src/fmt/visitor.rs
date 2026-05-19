@@ -20,6 +20,18 @@ impl EventVisitor {
 }
 
 impl tracing::field::Visit for EventVisitor {
+    fn record_i64(&mut self, field: &Field, value: i64) {
+        self.record_field(field.name(), value.to_string());
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.record_field(field.name(), value.to_string());
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.record_field(field.name(), value.to_string());
+    }
+
     fn record_str(&mut self, field: &Field, value: &str) {
         self.record_field(field.name(), value.to_owned());
     }

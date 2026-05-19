@@ -6,7 +6,7 @@ fn config_default() {
     assert!(matches!(config.level, Level::Info));
     assert_eq!(config.writers.len(), 1);
     let w = &config.writers[0];
-    assert!(matches!(w.format, Format::Pretty(_)));
+    assert!(matches!(w.format, Format::Compact(_)));
     assert!(w.ansi);
     assert!(w.show_path);
     assert!(w.show_spans);
@@ -16,7 +16,7 @@ fn config_default() {
 #[test]
 fn writer_default() {
     let w = Writer::default();
-    assert!(matches!(w.format, Format::Pretty(_)));
+    assert!(matches!(w.format, Format::Compact(_)));
     assert!(w.ansi);
     assert!(w.show_path);
     assert!(w.show_spans);
@@ -123,6 +123,7 @@ fn filter_from_level_debug() {
 }
 
 #[test]
+#[cfg(feature = "file")]
 fn writer_file_target() {
     let w = Writer {
         target: WriterTarget::File {

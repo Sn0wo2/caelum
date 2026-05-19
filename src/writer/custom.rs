@@ -26,6 +26,10 @@ impl Write for AsyncWriter {
             Ok(_) => Ok(buf.len()),
             Err(mpsc::error::TrySendError::Full(_)) => {
                 self.count.fetch_sub(1, Ordering::Relaxed);
+                let _unused = writeln!(
+                    std::io::stderr(),
+                    "acta: async writer buffer full (4096), dropping log message"
+                );
                 Ok(buf.len())
             }
             Err(mpsc::error::TrySendError::Closed(_)) => {
