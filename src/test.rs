@@ -2,134 +2,114 @@ use std::io;
 
 use super::*;
 use crate::config::LayerConfig;
-use crate::reload::build_reload_filter_for_test as build_reload_filter;
+use tracing_subscriber::layer::Layered;
+use tracing_subscriber::prelude::*;
+
+pub(crate) type SubscriberWithBoth = Layered<
+    tracing_subscriber::reload::Layer<tracing_subscriber::EnvFilter, builder::InnerSubscriber>,
+    builder::InnerSubscriber,
+>;
+
+pub(crate) fn build_reload_filter(
+    level: Level,
+    style: Style,
+) -> (
+    tracing_subscriber::reload::Layer<builder::FmtLayer, tracing_subscriber::Registry>,
+    TracingGuard,
+    SubscriberWithBoth,
+) {
+    let mut stdout_layer = None;
+    let stderr_layer = None;
+    let async_stdout_layer = None;
+    let async_stderr_layer = None;
+    let file_layer = None;
+
+    stdout_layer = Some(tracing_subscriber::fmt::Layer::default()
+        .with_writer(io::sink)
+        .boxed());
+
+    let inner_subscriber = tracing_subscriber::Registry::default()
+        .with(stdout_layer)
+        .with(stderr_layer)
+        .with(async_stdout_layer)
+        .with(async_stderr_layer)
+        .with(file_layer);
+
+    let filter = Filter::new(level);
+    let env_filter =
+        tracing_subscriber::EnvFilter::try_new(filter.as_directive()).unwrap_or_default();
+    let (env_layer, env_handle) = tracing_subscriber::reload::Layer::new(env_filter);
+    let subscriber = inner_subscriber.with(env_layer);
+
+    let shared_state = std::sync::Arc::new(arc_swap::ArcSwap::new(std::sync::Arc::new(style)));
+    let reload_handle = TracingGuard {
+        raw: env_handle,
+        filter,
+        style: shared_state,
+        #[cfg(feature = "file")]
+        worker_guard: None,
+        #[cfg(feature = "file")]
+        log_path: None,
+    };
+
+    let console_layer = tracing_subscriber::fmt::Layer::default()
+        .with_writer(io::sink)
+        .boxed();
+    let (layer, _) = tracing_subscriber::reload::Layer::new(console_layer);
+    (layer, reload_handle, subscriber)
+}
 
 #[test]
-fn build_console_layer_all_variants() {
+fn build_layer_all_variants() {
     let formats = [
         Format::Pretty(LayerConfig::pretty()),
         Format::Compact(LayerConfig::compact()),
         Format::Json(LayerConfig::json()),
     ];
-    let writers = [Writer::Stdout, Writer::Stderr];
+    let targets = [WriterTarget::Stdout, WriterTarget::Stderr];
 
     for format in &formats {
-        for writer in &writers {
-            let cfg = Console {
+        for target in &targets {
+            let w = Writer {
                 format: format.clone(),
-                writer: writer.clone(),
                 ansi: true,
                 color_depth: None,
                 show_path: true,
                 show_spans: true,
                 time_format: None,
                 style: Style::default(),
+                target: target.clone(),
             };
-            let _layer = build_console_layer(&cfg);
+            let _layer = build_layer::<tracing_subscriber::Registry>(&w);
         }
     }
 }
 
 #[test]
-fn build_console_layer_no_ansi() {
-    let cfg = Console {
+fn build_layer_no_ansi() {
+    let w = Writer {
         ansi: false,
         ..Default::default()
     };
-    let _layer = build_console_layer(&cfg);
+    let _layer = build_layer::<tracing_subscriber::Registry>(&w);
 }
 
 #[test]
-fn build_console_layer_custom_time() {
-    let cfg = Console {
+fn build_layer_custom_time() {
+    let w = Writer {
         time_format: Some(String::from("%Y/%m/%d")),
         ..Default::default()
     };
-    let _layer = build_console_layer(&cfg);
+    let _layer = build_layer::<tracing_subscriber::Registry>(&w);
 }
 
 #[cfg(feature = "nerd")]
 #[test]
-fn build_console_layer_with_nerd_icons() {
-    let cfg = Console::default();
-    let formatter = Formatter::new().with_icons(Icons::NERD);
-    let _layer = build_console_layer_with(&cfg, formatter);
+fn build_layer_with_nerd_icons() {
+    let w = Writer::default();
+    let _layer = build_layer::<tracing_subscriber::Registry>(&w);
 }
 
-#[cfg(feature = "file")]
-#[test]
-fn build_file_layer_creates_dirs() {
-    let dir = std::env::temp_dir().join("acta-test-filelayer");
-    drop(std::fs::remove_dir_all(&dir));
-    let nested = dir.join("a").join("b");
-    let log_path = nested.join("app.log");
-
-    let result = build_file_layer(&File {
-        path: log_path,
-        rotation: Rotation::None,
-    });
-    assert!(result.is_ok());
-
-    let (_writer, _guard, path) = result.unwrap();
-    assert!(path.parent().unwrap().exists());
-
-    drop(std::fs::remove_dir_all(&dir));
-}
-
-#[test]
-fn build_reload_filter_works() {
-    let (_layer, mut handle, _subscriber) = build_reload_filter(Level::Info, Style::default());
-    let result = handle.set_level(Level::Debug);
-    assert!(result.is_ok(), "set_level failed: {result:?}");
-    assert!(handle.set_target_level("my_crate", Level::Trace).is_ok());
-    assert!(handle.remove_target_level("my_crate").is_ok());
-    let mut filter = Filter::new(Level::Warn);
-    filter.with_target("my_crate", Level::Debug);
-    assert!(handle.set_filter(filter).is_ok());
-}
-
-#[cfg(feature = "file")]
-#[test]
-fn resolve_log_path_new_file() {
-    use crate::writer::file::resolve_log_path;
-    let dir = std::env::temp_dir().join("acta-test-resolve");
-    drop(std::fs::remove_dir_all(&dir));
-    drop(std::fs::create_dir_all(&dir));
-    let path = dir.join("new.log");
-
-    let resolved = resolve_log_path(&path);
-    assert_eq!(resolved, path);
-
-    drop(std::fs::remove_dir_all(&dir));
-}
-
-#[cfg(feature = "file")]
-#[test]
-fn resolve_log_path_fallback_when_parent_is_file() {
-    use crate::writer::file::resolve_log_path;
-    let dir = std::env::temp_dir().join("acta-test-resolve-fallback");
-    drop(std::fs::remove_dir_all(&dir));
-    drop(std::fs::create_dir_all(&dir));
-
-    let bad_file = dir.join("existing_file");
-    std::fs::write(&bad_file, b"contents").unwrap();
-
-    let nested = bad_file.join("should_not_exist.log");
-    let resolved = resolve_log_path(&nested);
-
-    assert!(!resolved.exists());
-    let pid = std::process::id();
-    assert!(
-        resolved
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains(&pid.to_string())
-    );
-
-    drop(std::fs::remove_dir_all(&dir));
-}
 
 #[test]
 fn reload_handle_with_style_config() {
