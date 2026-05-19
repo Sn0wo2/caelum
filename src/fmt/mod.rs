@@ -25,8 +25,6 @@ pub(crate) struct LevelStyles {
     label: OwoStyle,
 }
 
-
-
 use std::sync::Arc;
 
 const BUILD_PATH_WIDTH: usize = include!(concat!(env!("OUT_DIR"), "/path_width"));
@@ -64,7 +62,6 @@ impl Formatter {
             color_depth: ColorDepth::TrueColor,
         }
     }
-
 
     #[must_use]
     pub fn style_config(&self) -> Style {
@@ -133,9 +130,7 @@ impl Formatter {
 
     pub(crate) fn format_path(&self, file: &str, line: u32) -> ArrayString<PATH_BUF_SIZE> {
         let path_start = file.find("src/").or_else(|| file.find("src\\"));
-        let path = path_start.map_or(file, |i| {
-            file.get(i.saturating_add(4)..).unwrap_or(file)
-        });
+        let path = path_start.map_or(file, |i| file.get(i.saturating_add(4)..).unwrap_or(file));
 
         let mut norm_path = ArrayString::<PATH_BUF_SIZE>::new();
         for c in path.chars() {
@@ -157,7 +152,9 @@ impl Formatter {
         }
 
         if let Some(last_slash) = path_str.rfind('/') {
-            let tail = path_str.get(last_slash.saturating_add(1)..).unwrap_or(path_str);
+            let tail = path_str
+                .get(last_slash.saturating_add(1)..)
+                .unwrap_or(path_str);
             let mut file_part = ArrayString::<PATH_BUF_SIZE>::new();
             let _ = write!(file_part, "{tail}:{line}");
 
@@ -365,7 +362,8 @@ where
         write!(
             writer,
             "{} ",
-            rgb_to_owo(config.theme.accent, self.color_depth).style(config.icons.time_bracket_close)
+            rgb_to_owo(config.theme.accent, self.color_depth)
+                .style(config.icons.time_bracket_close)
         )?;
 
         if self.show_path {

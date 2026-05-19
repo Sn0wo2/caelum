@@ -2,25 +2,41 @@
 use std::sync::LazyLock;
 
 use acta::{
-    build_layer, build_reload_filter, init, rotate_log_file,
-    Config, Format, Icons, LayerConfig, Level, LevelLabels, Rotation, Style, Theme,
-    Writer, WriterTarget,
+    Config, Format, Icons, LayerConfig, Level, LevelLabels, Rotation, Style, Theme, Writer,
+    WriterTarget, build_layer, build_reload_filter, init, rotate_log_file,
 };
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use tracing_subscriber::prelude::*;
 
 fn section(title: &str) {
     let w: usize = 64;
     let pad = (w.saturating_sub(title.len())) / 2;
-    println!("\n┌{}┐\n|{:>pad$}{}{:pad$}|\n└{}┘", "─".repeat(w), "", title, "", "─".repeat(w));
+    println!(
+        "\n┌{}┐\n|{:>pad$}{}{:pad$}|\n└{}┘",
+        "─".repeat(w),
+        "",
+        title,
+        "",
+        "─".repeat(w)
+    );
 }
 
 macro_rules! log {
-    (sub, $msg:expr) => { println!("[-] {}", $msg) };
-    (info, $msg:expr) => { println!("[+] {}", $msg) };
-    (success, $msg:expr) => { println!("[√] {}", $msg) };
-    (fail, $msg:expr) => { println!("[X] {}", $msg) };
-    (pad, $msg:expr) => { println!("   · {}", $msg) };
+    (sub, $msg:expr) => {
+        println!("[-] {}", $msg)
+    };
+    (info, $msg:expr) => {
+        println!("[+] {}", $msg)
+    };
+    (success, $msg:expr) => {
+        println!("[√] {}", $msg)
+    };
+    (fail, $msg:expr) => {
+        println!("[X] {}", $msg)
+    };
+    (pad, $msg:expr) => {
+        println!("   · {}", $msg)
+    };
 }
 
 fn run_with(w: &Writer, f: impl FnOnce()) {
@@ -29,16 +45,26 @@ fn run_with(w: &Writer, f: impl FnOnce()) {
     tracing::subscriber::with_default(subscriber, f);
 }
 
-fn none_layer<S>() -> Option<acta::builder::FmtLayer<S>> where S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a> { None }
+fn none_layer<S>() -> Option<acta::builder::FmtLayer<S>>
+where
+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+{
+    None
+}
 
 fn run_with_reload(
-    style: Style, w: &Writer, level: Level,
+    style: Style,
+    w: &Writer,
+    level: Level,
     f: impl FnOnce(&mut acta::TracingGuard),
 ) {
     let (filter_layer, mut handle) = build_reload_filter(level, style);
     let subscriber = tracing_subscriber::Registry::default()
         .with(Some(build_layer::<tracing_subscriber::Registry>(w)))
-        .with(none_layer()).with(none_layer()).with(none_layer()).with(none_layer())
+        .with(none_layer())
+        .with(none_layer())
+        .with(none_layer())
+        .with(none_layer())
         .with(filter_layer);
     tracing::subscriber::with_default(subscriber, || f(&mut handle));
 }
@@ -67,22 +93,26 @@ fn emit_spans() {
     tracing::error!("span [layer1 > layer2 > layer3]");
 }
 
-static ICONS: LazyLock<SmallVec<[(&str, Icons); 3]>> = LazyLock::new(|| smallvec![
-    ("unicode", Icons::UNICODE),
-    ("no-icons", Icons::custom("", "", "", "", "", "", "", "")),
-    ("nerd", Icons::NERD),
-]);
+static ICONS: LazyLock<SmallVec<[(&str, Icons); 3]>> = LazyLock::new(|| {
+    smallvec![
+        ("unicode", Icons::UNICODE),
+        ("no-icons", Icons::custom("", "", "", "", "", "", "", "")),
+        ("nerd", Icons::NERD),
+    ]
+});
 
-static THEMES: LazyLock<SmallVec<[(&str, Theme); 8]>> = LazyLock::new(|| smallvec![
-    ("acta", Theme::acta()),
-    ("monokai", Theme::monokai()),
-    ("dracula", Theme::dracula()),
-    ("nord", Theme::nord()),
-    ("catppuccin_mocha", Theme::catppuccin_mocha()),
-    ("gruvbox", Theme::gruvbox()),
-    ("one_dark", Theme::one_dark()),
-    ("tokyo_night", Theme::tokyo_night()),
-]);
+static THEMES: LazyLock<SmallVec<[(&str, Theme); 8]>> = LazyLock::new(|| {
+    smallvec![
+        ("acta", Theme::acta()),
+        ("monokai", Theme::monokai()),
+        ("dracula", Theme::dracula()),
+        ("nord", Theme::nord()),
+        ("catppuccin_mocha", Theme::catppuccin_mocha()),
+        ("gruvbox", Theme::gruvbox()),
+        ("one_dark", Theme::one_dark()),
+        ("tokyo_night", Theme::tokyo_night()),
+    ]
+});
 
 fn main() {
     section("FORMAT × ICON");
@@ -93,9 +123,20 @@ fn main() {
     ];
     for (fmt_name, format) in formats {
         for (icon_name, icons) in &*ICONS {
-            let style = Style { icons: *icons, ..Default::default() };
+            let style = Style {
+                icons: *icons,
+                ..Default::default()
+            };
             let ansi = !matches!(format, Format::Json(_));
-            let w = Writer { style, format: format.clone(), ansi, target: WriterTarget::Stdout, show_path: false, show_spans: false, ..Default::default() };
+            let w = Writer {
+                style,
+                format: format.clone(),
+                ansi,
+                target: WriterTarget::Stdout,
+                show_path: false,
+                show_spans: false,
+                ..Default::default()
+            };
             log!(sub, &format!("{fmt_name} + {icon_name}"));
             run_with(&w, emit_all_levels);
         }
@@ -104,16 +145,23 @@ fn main() {
     section("THEMES");
     log!(sub, "Palette overview");
     for (name, t) in &*THEMES {
-        println!("    {name:<22} accent={:?}  secondary={:?}  text={:?}", t.accent, t.secondary, t.text);
+        println!(
+            "    {name:<22} accent={:?}  secondary={:?}  text={:?}",
+            t.accent, t.secondary, t.text
+        );
     }
 
     log!(sub, "Live preview per theme");
     for (name, theme) in &*THEMES {
         let w = Writer {
-            style: Style { theme: *theme, ..Default::default() },
+            style: Style {
+                theme: *theme,
+                ..Default::default()
+            },
             format: Format::Compact(LayerConfig::compact()),
             target: WriterTarget::Stdout,
-            show_path: false, show_spans: false,
+            show_path: false,
+            show_spans: false,
             ..Default::default()
         };
         println!("  [{name}]");
@@ -123,23 +171,43 @@ fn main() {
     section("ALL LEVELS");
     for (icon_name, icons) in &*ICONS {
         log!(sub, icon_name);
-        run_with(&Writer {
-            style: Style { icons: *icons, theme: Theme::one_dark(), ..Default::default() },
-            format: Format::Compact(LayerConfig::compact()),
-            target: WriterTarget::Stdout, show_path: false, show_spans: false,
-            ..Default::default()
-        }, emit_all_levels);
+        run_with(
+            &Writer {
+                style: Style {
+                    icons: *icons,
+                    theme: Theme::one_dark(),
+                    ..Default::default()
+                },
+                format: Format::Compact(LayerConfig::compact()),
+                target: WriterTarget::Stdout,
+                show_path: false,
+                show_spans: false,
+                ..Default::default()
+            },
+            emit_all_levels,
+        );
     }
 
     section("LABELS");
-    for (label, labels) in [("short", LevelLabels::SHORT), ("long", LevelLabels::DEFAULT)] {
+    for (label, labels) in [
+        ("short", LevelLabels::SHORT),
+        ("long", LevelLabels::DEFAULT),
+    ] {
         log!(sub, label);
-        run_with(&Writer {
-            style: Style { labels, ..Default::default() },
-            format: Format::Compact(LayerConfig::compact()),
-            target: WriterTarget::Stdout, show_path: false, show_spans: false,
-            ..Default::default()
-        }, || emit_demo(label));
+        run_with(
+            &Writer {
+                style: Style {
+                    labels,
+                    ..Default::default()
+                },
+                format: Format::Compact(LayerConfig::compact()),
+                target: WriterTarget::Stdout,
+                show_path: false,
+                show_spans: false,
+                ..Default::default()
+            },
+            || emit_demo(label),
+        );
     }
 
     section("PATH & SPANS");
@@ -148,65 +216,138 @@ fn main() {
         (false, false, "path=off, spans=off"),
     ] {
         log!(sub, desc);
-        run_with(&Writer { show_path, show_spans, ..Default::default() }, || emit_demo(desc));
+        run_with(
+            &Writer {
+                show_path,
+                show_spans,
+                ..Default::default()
+            },
+            || emit_demo(desc),
+        );
     }
 
     section("TIME FORMAT");
     for (tf, desc) in [
         (None, "default: %H:%M:%S"),
-        (Some("%Y-%m-%d %H:%M:%S%.3f".into()), "custom: %Y-%m-%d %H:%M:%S%.3f"),
+        (
+            Some("%Y-%m-%d %H:%M:%S%.3f".into()),
+            "custom: %Y-%m-%d %H:%M:%S%.3f",
+        ),
     ] {
         log!(sub, desc);
-        run_with(&Writer { time_format: tf, show_path: false, show_spans: false, ..Default::default() }, || emit_demo(desc));
+        run_with(
+            &Writer {
+                time_format: tf,
+                show_path: false,
+                show_spans: false,
+                ..Default::default()
+            },
+            || emit_demo(desc),
+        );
     }
 
     section("TARGETS");
-    for (target, desc) in [(WriterTarget::Stdout, "stdout"), (WriterTarget::Stderr, "stderr")] {
+    for (target, desc) in [
+        (WriterTarget::Stdout, "stdout"),
+        (WriterTarget::Stderr, "stderr"),
+    ] {
         log!(sub, desc);
-        if matches!(target, WriterTarget::Stderr) { eprintln!("    (output to stderr)"); }
-        run_with(&Writer { target, show_path: false, show_spans: false, ..Default::default() }, || emit_demo(desc));
+        if matches!(target, WriterTarget::Stderr) {
+            eprintln!("    (output to stderr)");
+        }
+        run_with(
+            &Writer {
+                target,
+                show_path: false,
+                show_spans: false,
+                ..Default::default()
+            },
+            || emit_demo(desc),
+        );
     }
 
     section("SPANS");
-    run_with(&Writer { show_spans: true, ..Default::default() }, emit_spans);
+    run_with(
+        &Writer {
+            show_spans: true,
+            ..Default::default()
+        },
+        emit_spans,
+    );
 
     section("RELOAD");
 
     log!(sub, "Level reload");
-    run_with_reload(Style::default(), &Writer { show_path: false, show_spans: false, ..Default::default() }, Level::Info, |h| {
-        tracing::info!("level=Info: info passes");
-        h.set_level(Level::Debug).unwrap();
-        log!(info, "→ set_level(Debug)");
-        tracing::debug!("level=Debug: debug passes");
-    });
+    run_with_reload(
+        Style::default(),
+        &Writer {
+            show_path: false,
+            show_spans: false,
+            ..Default::default()
+        },
+        Level::Info,
+        |h| {
+            tracing::info!("level=Info: info passes");
+            h.set_level(Level::Debug).unwrap();
+            log!(info, "→ set_level(Debug)");
+            tracing::debug!("level=Debug: debug passes");
+        },
+    );
 
     log!(sub, "Target-level reload");
-    run_with_reload(Style::default(), &Writer { show_path: false, show_spans: false, ..Default::default() }, Level::Debug, |h| {
-        tracing::info!(target: "demo", "before: info@demo passes (level=Debug)");
-        h.set_target_level("demo", Level::Warn).unwrap();
-        log!(info, "→ set_target_level(demo, Warn)");
-        tracing::info!(target: "demo", "after: info@demo suppressed");
-        tracing::warn!(target: "demo", "after: warn@demo passes");
-    });
+    run_with_reload(
+        Style::default(),
+        &Writer {
+            show_path: false,
+            show_spans: false,
+            ..Default::default()
+        },
+        Level::Debug,
+        |h| {
+            tracing::info!(target: "demo", "before: info@demo passes (level=Debug)");
+            h.set_target_level("demo", Level::Warn).unwrap();
+            log!(info, "→ set_target_level(demo, Warn)");
+            tracing::info!(target: "demo", "after: info@demo suppressed");
+            tracing::warn!(target: "demo", "after: warn@demo passes");
+        },
+    );
 
     log!(sub, "Style switch");
-    let style = Style { icons: Icons::UNICODE, ..Default::default() };
-    run_with_reload(style, &Writer { style, show_path: false, show_spans: false, ..Default::default() }, Level::Info, |h| {
-        tracing::info!("unicode + acta theme");
-        h.with_style(|s| s.theme = Theme::monokai());
-        log!(info, "→ monokai theme");
-        tracing::info!("monokai theme");
-        h.with_style(|s| s.icons = Icons::NERD);
-        log!(info, "→ nerd icons");
-        tracing::error!("nerd icons");
-    });
+    let style = Style {
+        icons: Icons::UNICODE,
+        ..Default::default()
+    };
+    run_with_reload(
+        style,
+        &Writer {
+            style,
+            show_path: false,
+            show_spans: false,
+            ..Default::default()
+        },
+        Level::Info,
+        |h| {
+            tracing::info!("unicode + acta theme");
+            h.with_style(|s| s.theme = Theme::monokai());
+            log!(info, "→ monokai theme");
+            tracing::info!("monokai theme");
+            h.with_style(|s| s.icons = Icons::NERD);
+            log!(info, "→ nerd icons");
+            tracing::error!("nerd icons");
+        },
+    );
 
     section("INFRA");
 
     log!(sub, "Level → directive");
     for l in [
-        Level::Error, Level::Warn, Level::Info, Level::Debug,
-        Level::Trace, Level::Off, Level::Custom("info,my_crate=debug".into()),
+        Level::Error,
+        Level::Warn,
+        Level::Info,
+        Level::Debug,
+        Level::Trace,
+        Level::Off,
+        Level::Custom("info,my_crate=debug".into()),
     ] {
         log!(info, &format!("{l:?} → \"{}\"", l.as_directive()));
     }
@@ -214,11 +355,15 @@ fn main() {
     log!(sub, "build_layer");
     for (desc, w) in [
         ("default", Writer::default()),
-        ("json+stderr+no-ansi", Writer {
-            format: Format::Json(LayerConfig::json()),
-            ansi: false, target: WriterTarget::Stderr,
-            ..Default::default()
-        }),
+        (
+            "json+stderr+no-ansi",
+            Writer {
+                format: Format::Json(LayerConfig::json()),
+                ansi: false,
+                target: WriterTarget::Stderr,
+                ..Default::default()
+            },
+        ),
     ] {
         drop(build_layer::<tracing_subscriber::Registry>(&w));
         log!(success, &format!("build_layer({desc})"));
@@ -232,7 +377,10 @@ fn main() {
     let path = dir.join("test.log");
     log!(info, &format!("target: {}", path.display()));
     std::fs::write(&path, b"old\n").ok();
-    for (mode, name) in [(Rotation::Rename, "Rename"), (Rotation::Compress, "Compress")] {
+    for (mode, name) in [
+        (Rotation::Rename, "Rename"),
+        (Rotation::Compress, "Compress"),
+    ] {
         match rotate_log_file(&path, mode) {
             Ok(()) => log!(success, &format!("rotate({name})")),
             Err(e) => log!(fail, &format!("rotate({name}): {e}")),
@@ -241,7 +389,9 @@ fn main() {
     }
     if let Ok(entries) = std::fs::read_dir(dir) {
         log!(info, "disk:");
-        for e in entries.flatten() { log!(pad, e.file_name().to_string_lossy()); }
+        for e in entries.flatten() {
+            log!(pad, e.file_name().to_string_lossy());
+        }
     }
 
     log!(sub, "init — end-to-end");
@@ -251,20 +401,26 @@ fn main() {
         .level(Level::Debug)
         .with_writer(Writer {
             format: Format::Compact(LayerConfig::compact()),
-            show_path: false, show_spans: false,
+            show_path: false,
+            show_spans: false,
             target: WriterTarget::Stdout,
             ..Default::default()
         })
         .with_writer(Writer {
             format: Format::Json(LayerConfig::json()),
-            target: WriterTarget::File { path: dir.join("app.log"), rotation: Rotation::default() },
+            target: WriterTarget::File {
+                path: dir.join("app.log"),
+                rotation: Rotation::default(),
+            },
             ..Default::default()
         })
         .build();
     match init(config) {
         Ok(g) => {
             log!(success, "init");
-            if let Some(p) = g.log_path() { log!(info, &format!("file → {}", p.display())); }
+            if let Some(p) = g.log_path() {
+                log!(info, &format!("file → {}", p.display()));
+            }
             tracing::info!(init = true, "console + file");
             drop(g);
         }

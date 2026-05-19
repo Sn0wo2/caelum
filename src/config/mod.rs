@@ -385,7 +385,11 @@ impl Default for LayerConfig {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Format {
@@ -471,7 +475,11 @@ impl Filter {
         &self.level
     }
 
-    pub fn with_target(&mut self, target: impl Into<compact_str::CompactString>, level: impl Into<Level>) -> &mut Self {
+    pub fn with_target(
+        &mut self,
+        target: impl Into<compact_str::CompactString>,
+        level: impl Into<Level>,
+    ) -> &mut Self {
         self.targets.insert(target.into(), level.into());
         self
     }
@@ -513,8 +521,11 @@ impl<'de> serde::Deserialize<'de> for Level {
     }
 }
 
-
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum WriterTarget {
@@ -533,7 +544,11 @@ pub enum WriterTarget {
 }
 
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "lowercase"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum AsyncMode {
@@ -572,7 +587,6 @@ pub struct Writer {
     pub style: Style,
     pub target: WriterTarget,
 }
-
 
 impl Default for Writer {
     fn default() -> Self {
@@ -653,4 +667,3 @@ impl From<ConfigBuilder> for Config {
 
 #[cfg(test)]
 mod test;
-

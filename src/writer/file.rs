@@ -26,7 +26,10 @@ impl FileWriter {
     }
 }
 
-pub(crate) fn build_file_layer(path: &Path, rotation: Rotation) -> Result<(FileWriter, LogHandle, PathBuf)> {
+pub(crate) fn build_file_layer(
+    path: &Path,
+    rotation: Rotation,
+) -> Result<(FileWriter, LogHandle, PathBuf)> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

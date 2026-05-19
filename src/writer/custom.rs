@@ -30,7 +30,10 @@ impl Write for AsyncWriter {
             }
             Err(mpsc::error::TrySendError::Closed(_)) => {
                 self.count.fetch_sub(1, Ordering::Relaxed);
-                Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "async writer closed"))
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "async writer closed",
+                ))
             }
         }
     }
@@ -58,17 +61,17 @@ pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
     let count_clone = count.clone();
 
     tokio::spawn(async move {
-            let writer: &mut (dyn AsyncWrite + Unpin + Send) = match target {
-                AsyncWriterTarget::Stdout => &mut stdout(),
-                AsyncWriterTarget::Stderr => &mut stderr(),
-            };
+        let writer: &mut (dyn AsyncWrite + Unpin + Send) = match target {
+            AsyncWriterTarget::Stdout => &mut stdout(),
+            AsyncWriterTarget::Stderr => &mut stderr(),
+        };
 
-            while let Some(data) = receiver.recv().await {
-                if let Err(e) = writer.write_all(&data).await {
-                    let _unused = writeln!(std::io::stderr(), "async writer error: {e}");
-                }
-                count_clone.fetch_sub(1, Ordering::Relaxed);
+        while let Some(data) = receiver.recv().await {
+            if let Err(e) = writer.write_all(&data).await {
+                let _unused = writeln!(std::io::stderr(), "async writer error: {e}");
             }
+            count_clone.fetch_sub(1, Ordering::Relaxed);
+        }
     });
 
     AsyncWriter { sender, count }
