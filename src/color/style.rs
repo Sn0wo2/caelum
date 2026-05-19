@@ -47,5 +47,5 @@ pub fn rgb_to_owo_on(r: u8, g: u8, b: u8, depth: ColorDepth) -> OwoStyle {
 }
 
 pub fn theme_fg_dimmed(rgb: (u8, u8, u8), depth: ColorDepth) -> OwoStyle {
-    rgb_to_owo((rgb.0 >> 2, rgb.1 >> 2, rgb.2 >> rgb.2 >> 2), depth)
+    rgb_to_owo((rgb.0 >> 2, rgb.1 >> 2, rgb.2 >> 2), depth)
 }
