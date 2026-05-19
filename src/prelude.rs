@@ -1,15 +1,12 @@
-pub use crate::ReloadHandle;
 pub use crate::TracingGuard;
-#[cfg(feature = "file")]
-pub use crate::builder::build_file_layer;
 pub use crate::builder::init;
 pub use crate::builder::{
-    build_console_layer, build_console_layer_with, build_reload_filter, build_subscriber,
+    build_layer, build_reload_filter, build_subscriber,
 };
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use crate::config::AsyncMode;
-pub use crate::config::{Config, Console, File, Icons, LevelLabels, Style, Theme};
-pub use crate::config::{Filter, Format, LayerConfig, Level, Rotation, Writer};
+pub use crate::config::{Config, Icons, LevelLabels, Style, Theme, Writer, WriterTarget};
+pub use crate::config::{Filter, Format, LayerConfig, Level, Rotation};
 pub use crate::fmt::Formatter;
 #[cfg(any(feature = "custom-async", feature = "native-async"))]
 pub use crate::writer::AsyncWriterTarget;

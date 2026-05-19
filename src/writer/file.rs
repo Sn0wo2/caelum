@@ -3,13 +3,12 @@ use std::path::{Path, PathBuf};
 use tracing_subscriber::fmt::MakeWriter;
 
 use crate::Result;
-use crate::config::{File, Rotation};
-
+use crate::config::Rotation;
 pub type LogHandle = tracing_appender::non_blocking::WorkerGuard;
 
 #[derive(Clone, Debug)]
 #[allow(clippy::module_name_repetitions)]
-pub struct FileWriter {
+pub(crate) struct FileWriter {
     writer: tracing_appender::non_blocking::NonBlocking,
 }
 
@@ -22,18 +21,17 @@ impl MakeWriter<'_> for FileWriter {
 }
 
 impl FileWriter {
-    pub const fn new(writer: tracing_appender::non_blocking::NonBlocking) -> Self {
+    pub(crate) const fn new(writer: tracing_appender::non_blocking::NonBlocking) -> Self {
         Self { writer }
     }
 }
 
-pub fn build_file_layer(file_config: &File) -> Result<(FileWriter, LogHandle, PathBuf)> {
-    let path = &file_config.path;
+pub(crate) fn build_file_layer(path: &Path, rotation: Rotation) -> Result<(FileWriter, LogHandle, PathBuf)> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    rotate_log_file(path, file_config.rotation)?;
+    rotate_log_file(path, rotation)?;
     let path = resolve_log_path(path);
 
     let (non_blocking, guard) = tracing_appender::non_blocking(tracing_appender::rolling::never(
@@ -58,28 +56,38 @@ pub fn rotate_log_file(path: &Path, mode: Rotation) -> Result<()> {
         }
         #[cfg(feature = "compress")]
         Rotation::Compress => {
-            use flate2::Compression;
-            use flate2::read::GzEncoder;
-            use std::io::{BufWriter, Read, Write};
+            let timestamp = now_timestamp();
+            let tmp_path = path.with_extension(format!("{timestamp}.log.tmp_compress"));
+            std::fs::rename(path, &tmp_path)?;
 
-            let gz_path = path.with_extension(format!("{}.log.gz", now_timestamp()));
-            let mut input = std::fs::File::open(path)?;
-            let output = std::fs::File::create(&gz_path)?;
-            let mut encoder = GzEncoder::new(&mut input, Compression::default());
-            let mut buf_writer = BufWriter::new(output);
-            let mut buf = [0_u8; 64 * 1024];
+            let orig_path_buf = path.to_path_buf();
+            std::thread::spawn(move || {
+                use flate2::Compression;
+                use flate2::read::GzEncoder;
+                use std::io::{BufWriter, Write};
 
-            loop {
-                let n = encoder.read(&mut buf)?;
-                if n == 0 {
-                    break;
+                let gz_path = orig_path_buf.with_extension(format!("{timestamp}.log.gz"));
+                let compress_res = (|| -> std::io::Result<()> {
+                    let mut input = std::fs::File::open(&tmp_path)?;
+                    let output = std::fs::File::create(&gz_path)?;
+                    let mut encoder = GzEncoder::new(&mut input, Compression::default());
+                    let mut buf_writer = BufWriter::new(output);
+                    std::io::copy(&mut encoder, &mut buf_writer)?;
+                    buf_writer.flush()?;
+                    drop(buf_writer);
+                    std::fs::remove_file(&tmp_path)?;
+                    Ok(())
+                })();
+
+                if let Err(e) = compress_res {
+                    let _unused = writeln!(
+                        std::io::stderr(),
+                        "async log compression failed for {}: {e}",
+                        tmp_path.display()
+                    );
                 }
-                buf_writer.write_all(buf.get(..n).unwrap_or(&[]))?;
-            }
-            buf_writer.flush()?;
-            drop(buf_writer);
+            });
 
-            std::fs::remove_file(path)?;
             Ok(())
         }
     }

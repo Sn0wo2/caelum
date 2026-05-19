@@ -22,7 +22,10 @@ pub use native::{NativeAsyncWriter, native_async_writer};
 #[cfg(feature = "file")]
 pub mod file;
 
-pub use file::resolve_log_path;
 #[cfg(feature = "file")]
-#[allow(clippy::module_name_repetitions)]
-pub use file::{FileWriter, LogHandle, build_file_layer, rotate_log_file};
+pub use file::{LogHandle, resolve_log_path, rotate_log_file};
+#[cfg(feature = "file")]
+pub(crate) use file::FileWriter;
+
+#[cfg(test)]
+mod test;

@@ -9,7 +9,7 @@ use super::AsyncWriterTarget;
 
 #[derive(Clone, Debug)]
 pub struct AsyncWriter {
-    sender: mpsc::UnboundedSender<Vec<u8>>,
+    sender: mpsc::Sender<Vec<u8>>,
     count: Arc<AtomicUsize>,
 }
 
@@ -22,11 +22,17 @@ impl AsyncWriter {
 impl Write for AsyncWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.count.fetch_add(1, Ordering::Relaxed);
-        self.sender.send(buf.to_vec()).map_err(|_| {
-            self.count.fetch_sub(1, Ordering::Relaxed);
-            std::io::Error::new(std::io::ErrorKind::BrokenPipe, "async writer closed")
-        })?;
-        Ok(buf.len())
+        match self.sender.try_send(buf.to_vec()) {
+            Ok(_) => Ok(buf.len()),
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                self.count.fetch_sub(1, Ordering::Relaxed);
+                Ok(buf.len())
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                self.count.fetch_sub(1, Ordering::Relaxed);
+                Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "async writer closed"))
+            }
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -47,22 +53,22 @@ pub fn async_writer() -> AsyncWriter {
 }
 
 pub fn async_writer_for(target: AsyncWriterTarget) -> AsyncWriter {
-    let (sender, mut receiver) = mpsc::unbounded_channel::<Vec<u8>>();
+    let (sender, mut receiver) = mpsc::channel::<Vec<u8>>(4096);
     let count = Arc::new(AtomicUsize::new(0));
     let count_clone = count.clone();
 
     tokio::spawn(async move {
-        let writer: &mut (dyn AsyncWrite + Unpin + Send) = match target {
-            AsyncWriterTarget::Stdout => &mut stdout(),
-            AsyncWriterTarget::Stderr => &mut stderr(),
-        };
+            let writer: &mut (dyn AsyncWrite + Unpin + Send) = match target {
+                AsyncWriterTarget::Stdout => &mut stdout(),
+                AsyncWriterTarget::Stderr => &mut stderr(),
+            };
 
-        while let Some(data) = receiver.recv().await {
-            if let Err(e) = writer.write_all(&data).await {
-                let _unused = writeln!(std::io::stderr(), "async writer error: {e}");
+            while let Some(data) = receiver.recv().await {
+                if let Err(e) = writer.write_all(&data).await {
+                    let _unused = writeln!(std::io::stderr(), "async writer error: {e}");
+                }
+                count_clone.fetch_sub(1, Ordering::Relaxed);
             }
-            count_clone.fetch_sub(1, Ordering::Relaxed);
-        }
     });
 
     AsyncWriter { sender, count }
