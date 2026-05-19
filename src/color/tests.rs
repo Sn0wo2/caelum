@@ -1,32 +1,33 @@
 #[cfg(test)]
 mod tests {
-    use owo_colors::AnsiColors;
+    use ansi_colours::ansi256_from_rgb;
+use owo_colors::AnsiColors;
 
-    use crate::color::mapping::{rgb_to_ansi16, rgb_to_ansi256};
+    use crate::color::mapping::rgb_to_ansi16;
 
     #[test]
     fn rgb256_primary_red() {
-        assert_eq!(rgb_to_ansi256(255, 0, 0), 196);
+        assert_eq!(ansi256_from_rgb((255, 0, 0)), 196);
     }
     #[test]
     fn rgb256_primary_green() {
-        assert_eq!(rgb_to_ansi256(0, 255, 0), 46);
+        assert_eq!(ansi256_from_rgb((0, 255, 0)), 46);
     }
     #[test]
     fn rgb256_primary_blue() {
-        assert_eq!(rgb_to_ansi256(0, 0, 255), 21);
+        assert_eq!(ansi256_from_rgb((0, 0, 255)), 21);
     }
     #[test]
     fn rgb256_gray() {
-        assert_eq!(rgb_to_ansi256(128, 128, 128), 244);
+        assert_eq!(ansi256_from_rgb((128, 128, 128)), 244);
     }
     #[test]
     fn rgb256_black() {
-        assert_eq!(rgb_to_ansi256(0, 0, 0), 16);
+        assert_eq!(ansi256_from_rgb((0, 0, 0)), 16);
     }
     #[test]
     fn rgb256_white() {
-        assert_eq!(rgb_to_ansi256(255, 255, 255), 231);
+        assert_eq!(ansi256_from_rgb((255, 255, 255)), 231);
     }
 
     #[test]
