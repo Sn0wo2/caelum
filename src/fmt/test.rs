@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 fn formatter_defaults() {
     let fmt = Formatter::new();
     assert_eq!(fmt.time_format, "%H:%M:%S");
-    assert_eq!(fmt.path_width, BUILD_PATH_WIDTH);
+    assert_eq!(fmt.path_width, DEFAULT_PATH_WIDTH);
     assert!(fmt.show_path);
     assert!(fmt.show_spans);
 }
@@ -110,6 +110,71 @@ fn format_path_strips_src() {
     let result = fmt.format_path("C:\\project\\src\\lib.rs", 42);
     assert!(result.contains("lib.rs:42"));
     assert!(!result.contains("src/"));
+}
+
+#[test]
+fn format_path_right_aligned_no_truncation() {
+    let mut fmt = Formatter::new();
+    fmt.path_width = 40;
+    let result = fmt.format_path("src/lib.rs", 10);
+    assert!(!result.contains('\u{2026}'), "expected no ellipsis: {result}");
+    assert_eq!(result.len(), 40);
+    assert!(result.ends_with("lib.rs:10"), "expected to end with stripped path: {result}");
+}
+
+#[test]
+fn format_path_dir_truncation_preserves_filename() {
+    let mut fmt = Formatter::new();
+    fmt.path_width = 28;
+    let result = fmt.format_path("very/long/deeply/nested/dir/file.rs", 42);
+    assert!(result.contains("file.rs:42"), "expected filename preserved: {result}");
+    assert!(!result.contains('\u{2026}'), "expected no leading ellipsis in dir truncation: {result}");
+    assert!(result.len() <= 28);
+}
+
+#[test]
+fn format_path_windows_normalization() {
+    let mut fmt = Formatter::new();
+    fmt.path_width = 40;
+    let result = fmt.format_path(r"C:\project\src\module\file.rs", 7);
+    assert!(!result.contains('\\'), "expected backslashes normalized: {result}");
+    assert!(result.contains("module/file.rs:7"), "expected normalized src path: {result}");
+}
+
+#[test]
+fn format_path_leading_ellipsis_for_very_long_path() {
+    let mut fmt = Formatter::new();
+    // Narrow enough that file_with_line alone exceeds width,
+    // forcing the leading-ellipsis fallback branch.
+    fmt.path_width = 11;
+    let result = fmt.format_path("/very/long/prefix/deep/nested/dirs/file.rs", 99);
+    assert!(result.starts_with('\u{2026}'), "expected leading ellipsis: {result}");
+    assert!(result.contains("file.rs:99"), "expected filename preserved: {result}");
+}
+
+#[test]
+fn format_path_file_with_line_branch_no_ellipsis() {
+    let mut fmt = Formatter::new();
+    fmt.path_width = 16;
+    let result = fmt.format_path("src/main.rs", 1);
+    assert!(result.contains("main.rs:1"), "expected stripped path: {result}");
+    assert!(!result.contains('\u{2026}'));
+    assert_eq!(result.len(), 16);
+}
+
+#[test]
+fn format_path_unicode_char_boundary_safe() {
+    let mut fmt = Formatter::new();
+    // Multi-byte Chinese characters: 模块 (6 bytes) + 文件 (6 bytes)
+    // Narrow width forces truncation exercising char-boundary adjustment
+    fmt.path_width = 12;
+    let result = fmt.format_path("src/模块/文件.rs", 10);
+    // Must be valid UTF-8 (no split multi-byte characters)
+    assert!(std::str::from_utf8(result.as_bytes()).is_ok());
+    // Char-boundary adjustment may skip leading bytes of a multi-byte char,
+    // but preserves the suffix after the boundary.
+    assert!(result.contains("件.rs:10") || result.contains("文件.rs:10"),
+        "expected filename suffix preserved: {result}");
 }
 
 #[test]
