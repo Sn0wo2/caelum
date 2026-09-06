@@ -47,22 +47,7 @@ func (t Target) resolve() Target {
 	if t.Writer == nil {
 		t.Writer = os.Stdout
 	}
-	if t.TimeFormat == "" {
-		t.TimeFormat = "15:04:05"
-	}
-	if t.PathWidth <= 0 {
-		t.PathWidth = 40
-	}
-	if t.Color == ColorAuto {
-		t.Color = detectDepth(t.Writer)
-	}
 	t.AddSource = t.AddSource || t.ShowSource
-	s := Style{}
-	if t.Style != nil {
-		s = *t.Style
-	}
-	s = mergeStyle(s)
-	t.Style = &s
 	return t
 }
 

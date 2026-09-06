@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -17,6 +18,14 @@ func compactLogger(buf *bytes.Buffer, depth ColorDepth, level slog.Level) *Logge
 		Level:   level,
 		Targets: []Target{{Writer: buf, Color: depth}},
 	})
+}
+
+func TestTargetDefaults(t *testing.T) {
+	var buf bytes.Buffer
+	h := New(Config{Targets: []Target{{Writer: &buf}}}).Handler().(*Handler)
+	if h.depth != NoColor || h.timeFormat != "15:04:05" || h.pathWidth != 40 || h.style != DefaultStyle() {
+		t.Errorf("unexpected target defaults: %+v", h)
+	}
 }
 
 func TestNoColorIsPlain(t *testing.T) {
@@ -206,17 +215,34 @@ func TestFanoutMultipleTargets(t *testing.T) {
 			{Writer: &file, Format: JSON},
 		},
 	})
-	log.Info("dual", "n", 1)
+	log.With("svc", "api").WithGroup("http").Info("dual", "n", 1)
 
-	if !strings.Contains(console.String(), "dual") {
-		t.Errorf("console target missing output: %q", console.String())
+	for _, want := range []string{"dual", "svc=api", "http.n=1"} {
+		if !strings.Contains(console.String(), want) {
+			t.Errorf("console target missing %q: %q", want, console.String())
+		}
 	}
 	var m map[string]any
 	if err := json.Unmarshal(file.Bytes(), &m); err != nil {
 		t.Fatalf("file target not valid JSON: %v", err)
 	}
-	if m["msg"] != "dual" {
+	if m["msg"] != "dual" || m["svc"] != "api" {
 		t.Errorf("file target wrong payload: %v", m)
+	}
+	if group, ok := m["http"].(map[string]any); !ok || group["n"] != float64(1) {
+		t.Errorf("file target missing grouped attr: %v", m)
+	}
+}
+
+func TestFanoutReturnsAllErrors(t *testing.T) {
+	first, second := errors.New("first"), errors.New("second")
+	log := New(Config{Targets: []Target{
+		{Writer: errorWriter{first}, Format: Text},
+		{Writer: errorWriter{second}, Format: JSON},
+	}})
+	err := log.Handler().Handle(context.Background(), slog.NewRecord(time.Time{}, LevelInfo, "x", 0))
+	if !errors.Is(err, first) || !errors.Is(err, second) {
+		t.Fatalf("fanout error = %v, want both target errors", err)
 	}
 }
 
@@ -306,6 +332,30 @@ func TestNewHandlerUsesSlogOptions(t *testing.T) {
 	}
 }
 
+func TestCompactValueFormatting(t *testing.T) {
+	for _, tc := range []struct {
+		value slog.Value
+		want  string
+	}{
+		{slog.StringValue(""), `""`},
+		{slog.StringValue("a b\n"), `"a b\n"`},
+		{slog.StringValue(`a="b"\c`), `"a=\"b\"\\c"`},
+		{slog.Int64Value(-42), "-42"},
+		{slog.Uint64Value(^uint64(0)), "18446744073709551615"},
+		{slog.Float64Value(1.25), "1.25"},
+		{slog.BoolValue(true), "true"},
+		{slog.DurationValue(1500 * time.Microsecond), "1.5ms"},
+		{slog.TimeValue(time.Date(2026, 9, 6, 1, 2, 3, 123456789, time.UTC)), "2026-09-06T01:02:03.123456789Z"},
+		{slog.AnyValue(errors.New("a b")), `"a b"`},
+		{slog.AnyValue(nil), "<nil>"},
+		{slog.AnyValue(userValue{}), `"[name=alice]"`},
+	} {
+		if got := compactValue(tc.value); got != tc.want {
+			t.Errorf("compactValue(%v) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+}
+
 func TestCompactHandlerUsesLogValuerAndQuotesUnsafeValues(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(NewHandler(&buf, &HandlerOptions{Color: NoColor}))
@@ -344,3 +394,7 @@ type userValue struct{}
 func (userValue) LogValue() slog.Value {
 	return slog.GroupValue(slog.String("name", "alice"))
 }
+
+type errorWriter struct{ err error }
+
+func (w errorWriter) Write([]byte) (int, error) { return 0, w.err }

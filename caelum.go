@@ -26,7 +26,7 @@ func New(cfg Config) *Logger {
 
 	h := handlers[0]
 	if len(handlers) > 1 {
-		h = &fanoutHandler{handlers: handlers}
+		h = slog.NewMultiHandler(handlers...)
 	}
 
 	return &Logger{Logger: slog.New(h), level: lv}

@@ -356,24 +356,10 @@ func compactMessage(v slog.Value) string {
 
 func compactValue(v slog.Value) string {
 	v = v.Resolve()
-	switch v.Kind() {
-	case slog.KindString:
-		return compactToken(v.String())
-	case slog.KindInt64:
-		return strconv.FormatInt(v.Int64(), 10)
-	case slog.KindUint64:
-		return strconv.FormatUint(v.Uint64(), 10)
-	case slog.KindFloat64:
-		return strconv.FormatFloat(v.Float64(), 'g', -1, 64)
-	case slog.KindBool:
-		return strconv.FormatBool(v.Bool())
-	case slog.KindDuration:
-		return v.Duration().String()
-	case slog.KindTime:
+	if v.Kind() == slog.KindTime {
 		return v.Time().Format(time.RFC3339Nano)
-	default:
-		return compactToken(fmt.Sprint(v.Any()))
 	}
+	return compactToken(v.String())
 }
 
 func compactToken(s string) string {
