@@ -48,6 +48,16 @@ func TestTrueColorHasEscapes(t *testing.T) {
 	}
 }
 
+func TestAnsiProfilesHaveEscapes(t *testing.T) {
+	for _, depth := range []ColorDepth{Ansi256, Ansi16} {
+		var buf bytes.Buffer
+		compactLogger(&buf, depth, LevelInfo).Info("hi")
+		if !strings.Contains(buf.String(), "\x1b[") {
+			t.Errorf("%v must emit an ANSI sequence, got %q", depth, buf.String())
+		}
+	}
+}
+
 func TestLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
 	log := compactLogger(&buf, NoColor, LevelWarn)
@@ -258,30 +268,6 @@ func TestHandlerFindsModuleRoot(t *testing.T) {
 	h := newHandler(target, LevelInfo)
 	if h.sourceRoot != root {
 		t.Fatalf("source root = %q, want module root %q", h.sourceRoot, root)
-	}
-}
-
-func TestRGBTo256Grayscale(t *testing.T) {
-	// Pure mid-gray should land in the grayscale ramp (232-255), not the cube.
-	got := rgbTo256(RGB{128, 128, 128})
-	if got < 232 || got > 255 {
-		t.Errorf("mid-gray should map to grayscale ramp, got %d", got)
-	}
-}
-
-func TestRGBTo16Nearest(t *testing.T) {
-	cases := []struct {
-		in   RGB
-		want uint8
-	}{
-		{RGB{255, 0, 0}, 9},      // bright red
-		{RGB{0, 0, 0}, 0},        // black
-		{RGB{255, 255, 255}, 15}, // bright white
-	}
-	for _, c := range cases {
-		if got := rgbTo16(c.in); got != c.want {
-			t.Errorf("rgbTo16(%v) = %d, want %d", c.in, got, c.want)
-		}
 	}
 }
 

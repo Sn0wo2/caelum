@@ -190,7 +190,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		b.WriteByte(' ')
 		d.paint(&b, st.Theme.Secondary, false, prefix+a.Key)
 		d.paint(&b, accent, false, "=")
-		d.paint(&b, text, false, valueString(a.Value))
+		d.paint(&b, text, false, a.Value.String())
 	}
 
 	// Groups only prefix attrs added after them, per the slog contract.
@@ -259,21 +259,4 @@ func formatPath(file string, line, width int, sourceRoot string) string {
 		adj++
 	}
 	return "…" + full[adj:]
-}
-
-func valueString(v slog.Value) string {
-	switch v.Kind() {
-	case slog.KindString:
-		return v.String()
-	case slog.KindInt64:
-		return strconv.FormatInt(v.Int64(), 10)
-	case slog.KindUint64:
-		return strconv.FormatUint(v.Uint64(), 10)
-	case slog.KindBool:
-		return strconv.FormatBool(v.Bool())
-	case slog.KindFloat64:
-		return strconv.FormatFloat(v.Float64(), 'g', -1, 64)
-	default:
-		return fmt.Sprint(v.Any())
-	}
 }

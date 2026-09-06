@@ -24,51 +24,27 @@ type AsyncWriter struct {
 	dropped uint64
 }
 
-// AsyncOption configures an AsyncWriter.
-type AsyncOption func(*asyncConfig)
-
-type asyncConfig struct {
-	bufferSize   int
-	pollInterval time.Duration
-	alerter      diode.Alerter
-}
-
-// WithBuffer sets the ring-buffer depth (number of pending writes). Default 1024.
-func WithBuffer(n int) AsyncOption {
-	return func(c *asyncConfig) {
-		if n > 0 {
-			c.bufferSize = n
-		}
-	}
-}
-
-// WithPollInterval makes the background worker poll on an interval (lower CPU)
-// instead of waking immediately on each write (lower latency, the default).
-func WithPollInterval(d time.Duration) AsyncOption {
-	return func(c *asyncConfig) { c.pollInterval = d }
-}
-
-// WithAlerter registers a callback invoked with the number of records dropped
-// when the buffer overflows. It composes with Dropped's internal counter.
-func WithAlerter(f func(missed int)) AsyncOption {
-	return func(c *asyncConfig) { c.alerter = diode.Alerter(f) }
+// AsyncConfig configures an AsyncWriter.
+type AsyncConfig struct {
+	BufferSize   int
+	PollInterval time.Duration
+	Alerter      func(missed int)
 }
 
 // Async wraps w so writes are performed asynchronously by a background worker.
-func Async(w io.Writer, opts ...AsyncOption) *AsyncWriter {
-	cfg := asyncConfig{bufferSize: 1024}
-	for _, o := range opts {
-		o(&cfg)
+func Async(w io.Writer, cfg AsyncConfig) *AsyncWriter {
+	if cfg.BufferSize <= 0 {
+		cfg.BufferSize = 1024
 	}
 
 	a := &AsyncWriter{w: w}
 	alert := func(missed int) {
 		atomic.AddUint64(&a.dropped, uint64(missed))
-		if cfg.alerter != nil {
-			cfg.alerter(missed)
+		if cfg.Alerter != nil {
+			cfg.Alerter(missed)
 		}
 	}
-	a.d = diode.NewWriter(w, cfg.bufferSize, cfg.pollInterval, alert)
+	a.d = diode.NewWriter(w, cfg.BufferSize, cfg.PollInterval, alert)
 	return a
 }
 

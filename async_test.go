@@ -32,7 +32,7 @@ func (s *syncBuffer) String() string {
 // so we poll briefly before asserting.
 func TestAsyncDeliversWhenSinkKeepsUp(t *testing.T) {
 	var sink syncBuffer
-	aw := Async(&sink, WithBuffer(4096), WithPollInterval(time.Millisecond))
+	aw := Async(&sink, AsyncConfig{BufferSize: 4096, PollInterval: time.Millisecond})
 
 	log := New(Config{
 		Level:   LevelInfo,
@@ -67,7 +67,7 @@ func TestAsyncDeliversWhenSinkKeepsUp(t *testing.T) {
 func TestAsyncNeverBlocks(t *testing.T) {
 	block := make(chan struct{})
 	bw := blockingWriter{release: block}
-	aw := Async(bw, WithBuffer(1))
+	aw := Async(bw, AsyncConfig{BufferSize: 1})
 	defer func() {
 		close(block)
 		_ = aw.Close()
@@ -95,9 +95,9 @@ func TestAsyncDropsAndAlerts(t *testing.T) {
 	var alerted uint64
 	block := make(chan struct{})
 	bw := blockingWriter{release: block}
-	aw := Async(bw, WithBuffer(4), WithAlerter(func(missed int) {
+	aw := Async(bw, AsyncConfig{BufferSize: 4, Alerter: func(missed int) {
 		atomic.AddUint64(&alerted, uint64(missed))
-	}))
+	}})
 
 	for i := 0; i < 1000; i++ {
 		_, _ = aw.Write([]byte("z\n"))
@@ -125,8 +125,8 @@ func (b blockingWriter) Write(p []byte) (int, error) {
 // layer: a wrapped buffer is not a terminal, so it must detect as NoColor.
 func TestAsyncUnwrapForColorDetection(t *testing.T) {
 	var sink bytes.Buffer
-	aw := Async(&sink)
-	defer aw.Close()
+	aw := Async(&sink, AsyncConfig{})
+	defer func() { _ = aw.Close() }()
 	if d := detectDepth(aw); d != NoColor {
 		t.Errorf("async-wrapped buffer should detect NoColor, got %v", d)
 	}

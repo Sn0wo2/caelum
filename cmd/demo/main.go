@@ -9,7 +9,7 @@ import (
 func main() {
 	// Force colors so the demo looks right even when piped into a file/pager.
 	// "Everything is a writer": wrap stdout in a non-blocking async writer.
-	out := caelum.Async(os.Stdout)
+	out := caelum.Async(os.Stdout, caelum.AsyncConfig{})
 
 	log := caelum.New(caelum.Config{
 		Level: caelum.LevelDebug,
@@ -18,7 +18,7 @@ func main() {
 		},
 	})
 	// Drain the async queue and release writers before exit.
-	defer log.Close()
+	defer func() { _ = log.Close() }()
 
 	log.Info("Hello, caelum!")
 	log.Debug("User logged in", "user", "alice", "id", 42)

@@ -5,7 +5,6 @@ go 1.26
 require (
 	github.com/muesli/termenv v0.16.0
 	github.com/rs/zerolog v1.35.1
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
