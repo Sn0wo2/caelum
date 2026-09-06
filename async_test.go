@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// syncBuffer is a goroutine-safe buffer for asserting on async output.
 type syncBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
@@ -27,9 +26,6 @@ func (s *syncBuffer) String() string {
 	return s.buf.String()
 }
 
-// TestAsyncDeliversWhenSinkKeepsUp checks that with a fast sink and ample
-// buffer, async writes reach the underlying writer. Delivery is asynchronous,
-// so we poll briefly before asserting.
 func TestAsyncDeliversWhenSinkKeepsUp(t *testing.T) {
 	var sink syncBuffer
 	aw := Async(&sink, AsyncConfig{BufferSize: 4096, PollInterval: time.Millisecond})
@@ -54,7 +50,7 @@ func TestAsyncDeliversWhenSinkKeepsUp(t *testing.T) {
 	if got := strings.Count(sink.String(), "async line"); got != 50 {
 		t.Errorf("expected 50 delivered lines, got %d", got)
 	}
-	if err := log.Close(); err != nil {
+	if err := aw.Close(); err != nil {
 		t.Fatalf("Close returned error: %v", err)
 	}
 	if aw.Dropped() != 0 {
@@ -62,8 +58,6 @@ func TestAsyncDeliversWhenSinkKeepsUp(t *testing.T) {
 	}
 }
 
-// TestAsyncNeverBlocks verifies the core guarantee: a wedged sink must not
-// block the producer. Writes return promptly even though the worker is stuck.
 func TestAsyncNeverBlocks(t *testing.T) {
 	block := make(chan struct{})
 	bw := blockingWriter{release: block}
@@ -83,14 +77,11 @@ func TestAsyncNeverBlocks(t *testing.T) {
 
 	select {
 	case <-done:
-		// returned promptly — producer was never blocked by the stuck sink
 	case <-time.After(2 * time.Second):
 		t.Fatal("Write blocked on a wedged sink; async must be non-blocking")
 	}
 }
 
-// TestAsyncDropsAndAlerts forces overflow against a wedged sink and asserts the
-// drop-oldest backpressure surfaces through Dropped and the Alerter callback.
 func TestAsyncDropsAndAlerts(t *testing.T) {
 	var alerted uint64
 	block := make(chan struct{})
@@ -121,8 +112,6 @@ func (b blockingWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// TestAsyncUnwrapForColorDetection ensures detection sees through the async
-// layer: a wrapped buffer is not a terminal, so it must detect as NoColor.
 func TestAsyncUnwrapForColorDetection(t *testing.T) {
 	var sink bytes.Buffer
 	aw := Async(&sink, AsyncConfig{})

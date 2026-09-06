@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
-// helper: a compact logger writing into buf with forced color depth.
 func compactLogger(buf *bytes.Buffer, depth ColorDepth, level slog.Level) *Logger {
 	return New(Config{
 		Level:   level,
@@ -96,8 +96,6 @@ func TestTraceLevel(t *testing.T) {
 	}
 }
 
-// Each compact target keeps its own style; partial styles fall back to
-// defaults for zero-value sections.
 func TestPerTargetStyle(t *testing.T) {
 	var a, b bytes.Buffer
 	log := New(Config{
@@ -126,7 +124,6 @@ func TestGroupPrefix(t *testing.T) {
 	}
 }
 
-// Attrs added before a WithGroup must not get that group's prefix.
 func TestGroupOnlyPrefixesLaterAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	log := compactLogger(&buf, NoColor, LevelInfo)
@@ -140,7 +137,6 @@ func TestGroupOnlyPrefixesLaterAttrs(t *testing.T) {
 	}
 }
 
-// Inline slog.Group attrs flatten with the same dotted prefix as WithGroup.
 func TestInlineGroupFlattens(t *testing.T) {
 	var buf bytes.Buffer
 	log := compactLogger(&buf, NoColor, LevelInfo)
@@ -182,13 +178,12 @@ func TestJSONTarget(t *testing.T) {
 	}
 }
 
-// ShowSource on one target must not leak a source field into other targets.
 func TestJSONSourceIsPerTarget(t *testing.T) {
 	var console, file bytes.Buffer
 	log := New(Config{
 		Level: LevelInfo,
 		Targets: []Target{
-			{Writer: &console, Color: NoColor, ShowSource: true},
+			{Writer: &console, Color: NoColor, AddSource: true},
 			{Writer: &file, Format: JSON},
 		},
 	})
@@ -276,4 +271,76 @@ func TestDimDarkens(t *testing.T) {
 	if c.R != 50 || c.G != 50 || c.B != 50 {
 		t.Errorf("dim should quarter each channel, got %v", c)
 	}
+}
+
+func TestNewHandlerUsesSlogOptions(t *testing.T) {
+	var buf bytes.Buffer
+	var level slog.LevelVar
+	level.Set(slog.LevelInfo)
+
+	h := NewHandler(&buf, &HandlerOptions{
+		HandlerOptions: slog.HandlerOptions{
+			Level: &level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == "password" {
+					return slog.String(a.Key, "redacted")
+				}
+				return a
+			},
+		},
+		Color: NoColor,
+	})
+	log := slog.New(h)
+	log.Info("login", "password", "secret")
+
+	out := buf.String()
+	if strings.Contains(out, "secret") || !strings.Contains(out, "password=redacted") {
+		t.Fatalf("ReplaceAttr was not applied: %q", out)
+	}
+
+	level.Set(slog.LevelError)
+	log.Info("dropped")
+	log.Error("kept")
+	if strings.Contains(buf.String(), "dropped") || !strings.Contains(buf.String(), "kept") {
+		t.Fatalf("LevelVar was not honored: %q", buf.String())
+	}
+}
+
+func TestCompactHandlerUsesLogValuerAndQuotesUnsafeValues(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(NewHandler(&buf, &HandlerOptions{Color: NoColor}))
+	log.Info("hello\nworld", "user", userValue{}, "note", "a b")
+
+	out := buf.String()
+	if strings.Count(out, "\n") != 1 {
+		t.Fatalf("compact output must stay on one line: %q", out)
+	}
+	for _, want := range []string{`"hello\nworld"`, "user.name=alice", `note="a b"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output %q missing %q", out, want)
+		}
+	}
+}
+
+func TestCompactHandlerOmitsZeroRecordTime(t *testing.T) {
+	var buf bytes.Buffer
+	h := NewHandler(&buf, &HandlerOptions{Color: NoColor})
+	r := slog.NewRecord(time.Time{}, slog.LevelInfo, "zero time", 0)
+	if err := h.Handle(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+
+	out := buf.String()
+	if strings.Contains(out, "┇") || strings.Contains(out, "｣") {
+		t.Errorf("zero record time should be omitted: %q", out)
+	}
+	if !strings.Contains(out, "zero time") {
+		t.Errorf("message missing from output: %q", out)
+	}
+}
+
+type userValue struct{}
+
+func (userValue) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("name", "alice"))
 }

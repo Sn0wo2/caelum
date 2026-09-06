@@ -1,19 +1,15 @@
 package caelum
 
-// RGB is a 24-bit color expressed as red, green and blue components.
 type RGB struct{ R, G, B uint8 }
 
-// dim darkens a color to roughly a quarter of its brightness, matching acta's
-// `Styled::dimmed` (a 2-bit right shift on each channel).
 func (c RGB) dim() RGB {
 	return RGB{c.R >> 2, c.G >> 2, c.B >> 2}
 }
 
-// Theme is the full palette used to colorize a log line.
 type Theme struct {
-	Accent    RGB // brackets, separators, arrows
-	Secondary RGB // field keys
-	Text      RGB // timestamps, messages, field values
+	Accent    RGB
+	Secondary RGB
+	Text      RGB
 	Error     RGB
 	Warn      RGB
 	Info      RGB
@@ -22,7 +18,6 @@ type Theme struct {
 }
 
 var (
-	// ThemeCaelum is the default palette.
 	ThemeCaelum = Theme{
 		RGB{91, 206, 250}, RGB{245, 169, 184}, RGB{255, 255, 255},
 		RGB{255, 85, 85}, RGB{255, 200, 60}, RGB{91, 206, 250},
@@ -72,7 +67,6 @@ var (
 	}
 )
 
-// Icons are the decorative glyphs that wrap a log line.
 type Icons struct {
 	Name             string
 	BracketOpen      string
@@ -83,7 +77,6 @@ type Icons struct {
 	Arrow            string
 }
 
-// IconsUnicode is the default icon set, safe for any UTF-8 terminal.
 var IconsUnicode = Icons{
 	Name:             "unicode",
 	BracketOpen:      "[",
@@ -94,18 +87,16 @@ var IconsUnicode = Icons{
 	Arrow:            ">",
 }
 
-// IconsNerd uses Powerline/Nerd Font glyphs. Requires a patched font.
 var IconsNerd = Icons{
 	Name:             "nerd",
-	BracketOpen:      "", //
-	BracketClose:     "", //
+	BracketOpen:      "",
+	BracketClose:     "",
 	TimeBracketOpen:  "",
 	TimeBracketClose: "",
 	Separator:        "┇",
-	Arrow:            "", //
+	Arrow:            "",
 }
 
-// LevelLabels is the text shown inside the level bracket for each severity.
 type LevelLabels struct {
 	Error, Warn, Info, Debug, Trace string
 }
@@ -116,14 +107,26 @@ var (
 	LabelsShort  = LevelLabels{"E", "W", "I", "D", "T"}
 )
 
-// Style bundles the three visual dimensions that can be swapped at runtime.
 type Style struct {
 	Theme  Theme
 	Icons  Icons
 	Labels LevelLabels
 }
 
-// DefaultStyle mirrors acta's default: Caelum theme, Unicode icons, long labels.
 func DefaultStyle() Style {
 	return Style{Theme: ThemeCaelum, Icons: IconsUnicode, Labels: LabelsLong}
+}
+
+func mergeStyle(override Style) Style {
+	style := DefaultStyle()
+	if override.Theme != (Theme{}) {
+		style.Theme = override.Theme
+	}
+	if override.Icons != (Icons{}) {
+		style.Icons = override.Icons
+	}
+	if override.Labels != (LevelLabels{}) {
+		style.Labels = override.Labels
+	}
+	return style
 }
