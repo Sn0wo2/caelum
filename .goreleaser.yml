@@ -3,8 +3,8 @@ version: 2
 builds:
   - skip: true
 
-source:
-  enabled: true
+checksum:
+  disable: true
 
 snapshot:
   version_template: "{{ .Version }}-next"

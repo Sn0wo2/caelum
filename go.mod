@@ -1,6 +1,6 @@
 module github.com/Sn0wo2/caelum
 
-go 1.26
+go 1.27.3
 
 require (
 	github.com/muesli/termenv v0.16.0
