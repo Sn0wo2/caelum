@@ -2,7 +2,6 @@ package caelum
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -12,9 +11,9 @@ import (
 	"sync"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/muesli/termenv"
+	"github.com/rivo/uniseg"
 )
 
 func detectDepth(w io.Writer) ColorDepth {
@@ -23,6 +22,7 @@ func detectDepth(w io.Writer) ColorDepth {
 		if !ok {
 			break
 		}
+
 		w = u.Unwrap()
 	}
 
@@ -33,6 +33,8 @@ func detectDepth(w io.Writer) ColorDepth {
 		return Ansi256
 	case termenv.ANSI:
 		return Ansi16
+	case termenv.Ascii:
+		return NoColor
 	default:
 		return NoColor
 	}
@@ -43,12 +45,16 @@ type Handler struct {
 	mu          *sync.Mutex
 	style       Style
 	depth       ColorDepth
+	colors      palette
 	timeFormat  string
 	addSource   bool
 	pathWidth   int
 	sourceRoot  string
 	level       slog.Leveler
 	replaceAttr func(groups []string, a slog.Attr) slog.Attr
+	stacktrace  []slog.Level
+	pretty      bool
+	prettyOpts  PrettyOptions
 
 	goas []groupOrAttrs
 }
@@ -67,6 +73,9 @@ type HandlerOptions struct {
 	Style      Style
 	PathWidth  int
 	TimeFormat string
+
+	PrettyOptions *PrettyOptions
+	Stacktrace    []slog.Level
 }
 
 func NewHandler(w io.Writer, opts *HandlerOptions) *Handler {
@@ -78,31 +87,46 @@ func NewHandler(w io.Writer, opts *HandlerOptions) *Handler {
 	if opts != nil {
 		o = *opts
 	}
+
 	if o.Level == nil {
 		o.Level = slog.LevelInfo
 	}
+
 	if o.TimeFormat == "" {
 		o.TimeFormat = "15:04:05"
 	}
+
 	if o.PathWidth <= 0 {
 		o.PathWidth = 40
 	}
+
 	if o.Color == ColorAuto {
 		o.Color = detectDepth(w)
 	}
 
-	return &Handler{
+	style := mergeStyle(o.Style)
+
+	h := &Handler{
 		out:         w,
 		mu:          &sync.Mutex{},
-		style:       mergeStyle(o.Style),
+		style:       style,
 		depth:       o.Color,
+		colors:      makePalette(o.Color, style.Theme),
 		timeFormat:  o.TimeFormat,
 		addSource:   o.AddSource,
 		pathWidth:   o.PathWidth,
 		sourceRoot:  findSourceRoot(),
 		level:       o.Level,
 		replaceAttr: o.ReplaceAttr,
+		stacktrace:  resolveStacktrace(o.Stacktrace),
 	}
+	if o.PrettyOptions != nil {
+		h.pretty = true
+		h.prettyOpts = *o.PrettyOptions
+		h.addSource = h.addSource || h.prettyOpts.Target || h.prettyOpts.File || h.prettyOpts.LineNumber
+	}
+
+	return h
 }
 
 func newHandler(t Target, level slog.Leveler) *Handler {
@@ -111,10 +135,19 @@ func newHandler(t Target, level slog.Leveler) *Handler {
 		Color:          t.Color,
 		PathWidth:      t.PathWidth,
 		TimeFormat:     t.TimeFormat,
+		Stacktrace:     t.Stacktrace,
 	}
+	if t.Format == Pretty {
+		opts.PrettyOptions = t.PrettyOptions
+		if opts.PrettyOptions == nil {
+			opts.PrettyOptions = &PrettyOptions{Target: true, File: true, LineNumber: true}
+		}
+	}
+
 	if t.Style != nil {
 		opts.Style = *t.Style
 	}
+
 	return NewHandler(t.Writer, &opts)
 }
 
@@ -123,14 +156,18 @@ func findSourceRoot() string {
 	for dir := sourceRoot; dir != ""; {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			sourceRoot = dir
+
 			break
 		}
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
+
 		dir = parent
 	}
+
 	return sourceRoot
 }
 
@@ -142,9 +179,21 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
+
 	h2 := *h
+
 	attrsCopy := append([]slog.Attr(nil), attrs...)
+
 	h2.goas = append(append([]groupOrAttrs(nil), h.goas...), groupOrAttrs{attrs: attrsCopy})
+
+	for _, attr := range attrsCopy {
+		if isStacktraceAttr(attr) {
+			h2.stacktrace = nil
+
+			break
+		}
+	}
+
 	return &h2
 }
 
@@ -152,135 +201,253 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
 	}
+
 	h2 := *h
 	h2.goas = append(append([]groupOrAttrs(nil), h.goas...), groupOrAttrs{group: name})
-	return &h2
-}
 
-func (h *Handler) levelColor(st *Style, l slog.Level) (RGB, string) {
-	switch {
-	case l >= slog.LevelError:
-		return st.Theme.Error, st.Labels.Error
-	case l >= slog.LevelWarn:
-		return st.Theme.Warn, st.Labels.Warn
-	case l >= slog.LevelInfo:
-		return st.Theme.Info, st.Labels.Info
-	case l >= slog.LevelDebug:
-		return st.Theme.Debug, st.Labels.Debug
-	default:
-		return st.Theme.Trace, st.Labels.Trace
-	}
+	return &h2
 }
 
 func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	st := &h.style
-	d := h.depth
+	p := &h.colors
+
 	var b strings.Builder
 
-	accent := st.Theme.Accent
-	text := st.Theme.Text
-	levelRGB, defaultLabel := h.levelColor(st, r.Level)
-
 	var timeAttr slog.Attr
+
 	hasTime := !r.Time.IsZero()
 	if hasTime {
-		timeAttr, hasTime = h.replaceBuiltIn(slog.Time(slog.TimeKey, r.Time.Round(0)), nil)
-	}
-	levelAttr, hasLevel := h.replaceBuiltIn(slog.Any(slog.LevelKey, r.Level), nil)
-
-	if hasTime {
-		d.paint(&b, accent, false, st.Icons.TimeBracketOpen)
-		d.paint(&b, text, false, formatTime(timeAttr.Value, h.timeFormat))
-		b.WriteByte(' ')
-		d.paint(&b, accent.dim(), false, st.Icons.Separator)
-		if hasLevel {
-			b.WriteByte(' ')
-		}
+		timeAttr, hasTime = h.replaceBuiltIn(slog.Time(slog.TimeKey, r.Time.Round(0)))
 	}
 
-	if hasLevel {
-		bracketBg := st.Icons.Name != "nerd"
-		label := levelLabel(levelAttr.Value, defaultLabel)
-		d.paint(&b, levelRGB, bracketBg, st.Icons.BracketOpen)
-		d.paint(&b, levelRGB, true, label)
-		d.paint(&b, levelRGB, bracketBg, st.Icons.BracketClose)
-	}
-	if hasTime {
-		d.paint(&b, accent, false, st.Icons.TimeBracketClose)
-	}
+	levelAttr, hasLevel := h.replaceBuiltIn(slog.Any(slog.LevelKey, r.Level))
+	h.writeHeader(&b, timeAttr, hasTime, levelAttr, hasLevel, r.Level)
 	needsSpace := hasTime || hasLevel
+
+	var sourceAttr slog.Attr
+
+	hasSource := false
 
 	if h.addSource {
 		sourceValue := r.Source()
 		if sourceValue == nil {
 			sourceValue = &slog.Source{}
 		}
-		if source, ok := h.replaceBuiltIn(slog.Any(slog.SourceKey, sourceValue), nil); ok {
-			if file, line, ok := sourcePath(source.Value); ok {
+
+		sourceAttr, hasSource = h.replaceBuiltIn(slog.Any(slog.SourceKey, sourceValue))
+		if hasSource && !h.pretty {
+			if file, line, ok := sourcePath(sourceAttr.Value); ok {
 				if needsSpace {
 					b.WriteByte(' ')
 				}
-				d.paint(&b, text.dim(), false, formatPath(file, line, h.pathWidth, h.sourceRoot))
+
+				if st.Icons.Name == "nerd" {
+					p.accentDimmed.paint(&b, "")
+					b.WriteByte(' ')
+				}
+
+				p.textDimmed.paint(&b, formatPath(file, line, h.pathWidth, h.sourceRoot))
 				b.WriteByte(' ')
-				d.paint(&b, accent, false, st.Icons.Arrow)
+				p.secondary.paint(&b, st.Icons.Arrow)
+
 				needsSpace = true
 			}
 		}
 	}
 
-	if msg, ok := h.replaceBuiltIn(slog.String(slog.MessageKey, r.Message), nil); ok {
+	if msg, ok := h.replaceBuiltIn(slog.String(slog.MessageKey, r.Message)); ok {
 		message := compactMessage(msg.Value)
 		if message != "" {
 			if needsSpace {
 				b.WriteByte(' ')
 			}
-			d.paint(&b, text, false, message)
+
+			p.text.paint(&b, message)
+
 			needsSpace = true
 		}
 	}
 
 	groups := []string(nil)
+
 	for _, goa := range h.goas {
 		if goa.group != "" {
 			groups = append(groups, goa.group)
+
 			continue
 		}
-		h.writeAttrs(&b, d, st, groups, goa.attrs, &needsSpace)
+
+		h.writeAttrs(&b, groups, goa.attrs, &needsSpace)
 	}
+
 	r.Attrs(func(a slog.Attr) bool {
-		h.writeAttr(&b, d, st, groups, a, &needsSpace)
+		h.writeAttr(&b, groups, a, &needsSpace)
+
 		return true
 	})
 
+	if h.pretty && hasSource {
+		h.writePrettySource(&b, sourceAttr.Value, needsSpace)
+	}
+
 	b.WriteByte('\n')
+
+	if stack := stacktraceFor(h.stacktrace, r); stack != "" {
+		if attr, ok := h.replaceBuiltIn(slog.String("stacktrace", stack)); ok {
+			stack = attr.Value.String()
+
+			b.WriteString("Stacktrace:\n")
+			b.WriteString(stack)
+
+			if !strings.HasSuffix(stack, "\n") {
+				b.WriteByte('\n')
+			}
+		}
+	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	_, err := io.WriteString(h.out, b.String())
+
+	n, err := io.WriteString(h.out, b.String())
+	if err == nil && n != b.Len() {
+		err = io.ErrShortWrite
+	}
+
 	return err
 }
 
-func (h *Handler) replaceBuiltIn(a slog.Attr, groups []string) (slog.Attr, bool) {
+func (h *Handler) writeHeader(b *strings.Builder, time slog.Attr, hasTime bool, level slog.Attr, hasLevel bool, l slog.Level) {
+	icons := h.style.Icons
+	p := &h.colors
+	index := levelIndex(l)
+	label := levelLabel(level.Value, [5]string{
+		h.style.Labels.Error, h.style.Labels.Warn, h.style.Labels.Info,
+		h.style.Labels.Debug, h.style.Labels.Trace,
+	}[index])
+	colors := p.levels[index]
+	nerd := icons.Name == "nerd"
+	frameSpace, iconSpace := "", ""
+	clockIcon, levelIcon := "", ""
+
+	if icons.Name == "unicode" || nerd {
+		frameSpace = " "
+	}
+
+	if nerd {
+		iconSpace = " "
+		clockIcon = ""
+		levelIcon = [5]string{"", "", "", "", ""}[index]
+	}
+
+	if nerd && h.colors.timeBody != "" && hasTime && hasLevel {
+		p.timeOutline.paint(b, icons.TimeBracketOpen)
+		p.timeBody.paint(b, " "+clockIcon+" "+formatTime(time.Value, h.timeFormat)+" ")
+		colors.transition.paint(b, icons.Separator)
+		colors.body.paint(b, " "+levelIcon+" "+label+" ")
+		colors.close.paint(b, icons.TimeBracketClose)
+		b.WriteByte(' ')
+
+		return
+	}
+
+	timeOpen, timeClose, separator := icons.TimeBracketOpen, icons.TimeBracketClose, icons.Separator
+	if nerd {
+		timeOpen, timeClose, separator = "❬", "❭", "┊"
+	}
+
+	if hasTime {
+		p.accent.paint(b, timeOpen)
+		b.WriteString(frameSpace)
+		p.text.paint(b, clockIcon+iconSpace+formatTime(time.Value, h.timeFormat))
+
+		if hasLevel {
+			b.WriteByte(' ')
+			p.accentDimmed.paint(b, separator)
+			b.WriteByte(' ')
+		}
+	}
+
+	if hasLevel {
+		colors.outline.paint(b, icons.BracketOpen)
+		colors.body.paint(b, levelIcon+iconSpace+label)
+		colors.outline.paint(b, icons.BracketClose)
+	}
+
+	if hasTime {
+		b.WriteByte(' ')
+		p.accent.paint(b, timeClose)
+		b.WriteString(frameSpace)
+	}
+}
+
+func (h *Handler) writePrettySource(b *strings.Builder, value slog.Value, needsSpace bool) {
+	var parts []string
+
+	if file, line, ok := sourcePath(value); ok {
+		if h.prettyOpts.File {
+			if !h.prettyOpts.LineNumber {
+				line = -1
+			}
+
+			parts = append(parts, strings.TrimLeft(formatPath(file, line, h.pathWidth, h.sourceRoot), " "))
+		} else if h.prettyOpts.LineNumber {
+			parts = append(parts, "line "+strconv.Itoa(line))
+		}
+	}
+
+	if h.prettyOpts.Target && value.Kind() == slog.KindAny {
+		var function string
+
+		switch source := value.Any().(type) {
+		case *slog.Source:
+			if source != nil {
+				function = source.Function
+			}
+		case slog.Source:
+			function = source.Function
+		}
+
+		if function != "" {
+			parts = append(parts, function)
+		}
+	}
+
+	if len(parts) == 0 {
+		return
+	}
+
+	if needsSpace {
+		b.WriteByte('\n')
+	}
+
+	b.WriteString("  ")
+	h.colors.textDimmed.paint(b, "at "+strings.Join(parts, " in "))
+}
+
+func (h *Handler) replaceBuiltIn(a slog.Attr) (slog.Attr, bool) {
 	a.Value = a.Value.Resolve()
 	if h.replaceAttr != nil {
-		a = h.replaceAttr(groups, a)
+		a = h.replaceAttr(nil, a)
 		a.Value = a.Value.Resolve()
 	}
+
 	return a, !a.Equal(slog.Attr{})
 }
 
-func (h *Handler) writeAttrs(b *strings.Builder, d ColorDepth, st *Style, groups []string, attrs []slog.Attr, needsSpace *bool) {
+func (h *Handler) writeAttrs(b *strings.Builder, groups []string, attrs []slog.Attr, needsSpace *bool) {
 	for _, a := range attrs {
-		h.writeAttr(b, d, st, groups, a, needsSpace)
+		h.writeAttr(b, groups, a, needsSpace)
 	}
 }
 
-func (h *Handler) writeAttr(b *strings.Builder, d ColorDepth, st *Style, groups []string, a slog.Attr, needsSpace *bool) {
+func (h *Handler) writeAttr(b *strings.Builder, groups []string, a slog.Attr, needsSpace *bool) {
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() != slog.KindGroup && h.replaceAttr != nil {
 		a = h.replaceAttr(groups, a)
 		a.Value = a.Value.Resolve()
 	}
+
 	if a.Equal(slog.Attr{}) {
 		return
 	}
@@ -290,17 +457,28 @@ func (h *Handler) writeAttr(b *strings.Builder, d ColorDepth, st *Style, groups 
 		if a.Key != "" {
 			nextGroups = append(append([]string(nil), groups...), a.Key)
 		}
-		h.writeAttrs(b, d, st, nextGroups, a.Value.Group(), needsSpace)
+
+		h.writeAttrs(b, nextGroups, a.Value.Group(), needsSpace)
+
 		return
 	}
 
 	key := strings.Join(append(append([]string(nil), groups...), a.Key), ".")
+
 	if *needsSpace {
-		b.WriteByte(' ')
+		if h.pretty {
+			b.WriteString("\n  ")
+		} else {
+			b.WriteByte(' ')
+		}
+	} else if h.pretty {
+		b.WriteString("  ")
 	}
-	d.paint(b, st.Theme.Secondary, false, compactToken(key))
-	d.paint(b, st.Theme.Accent, false, "=")
-	d.paint(b, st.Theme.Text, false, compactValue(a.Value))
+
+	h.colors.secondary.paint(b, compactToken(key))
+	h.colors.accent.paint(b, "=")
+	h.colors.text.paint(b, compactValue(a.Value))
+
 	*needsSpace = true
 }
 
@@ -308,6 +486,7 @@ func formatTime(v slog.Value, layout string) string {
 	if v.Kind() == slog.KindTime {
 		return v.Time().Format(layout)
 	}
+
 	return compactValue(v)
 }
 
@@ -316,14 +495,17 @@ func levelLabel(v slog.Value, fallback string) string {
 	if v.Kind() == slog.KindString {
 		return v.String()
 	}
+
 	if v.Kind() == slog.KindAny {
 		if _, ok := v.Any().(slog.Level); ok {
 			return fallback
 		}
 	}
+
 	if value := compactValue(v); value != "" {
 		return value
 	}
+
 	return fallback
 }
 
@@ -335,14 +517,17 @@ func sourcePath(v slog.Value) (string, int, bool) {
 			if source == nil {
 				return "", 0, false
 			}
+
 			return source.File, source.Line, source.File != ""
 		case slog.Source:
 			return source.File, source.Line, source.File != ""
 		}
 	}
+
 	if v.Kind() == slog.KindString {
 		return v.String(), 0, v.String() != ""
 	}
+
 	return "", 0, false
 }
 
@@ -351,6 +536,7 @@ func compactMessage(v slog.Value) string {
 	if v.Kind() == slog.KindString {
 		return escapeControl(v.String())
 	}
+
 	return escapeControl(compactValue(v))
 }
 
@@ -359,6 +545,7 @@ func compactValue(v slog.Value) string {
 	if v.Kind() == slog.KindTime {
 		return v.Time().Format(time.RFC3339Nano)
 	}
+
 	return compactToken(v.String())
 }
 
@@ -368,50 +555,70 @@ func compactToken(s string) string {
 	}) >= 0 {
 		return strconv.Quote(s)
 	}
+
 	return s
 }
 
 func escapeControl(s string) string {
-	if strings.IndexFunc(s, func(r rune) bool { return unicode.IsControl(r) }) >= 0 {
+	if strings.IndexFunc(s, unicode.IsControl) >= 0 {
 		return strconv.Quote(s)
 	}
+
 	return s
 }
 
 func formatPath(file string, line, width int, sourceRoot string) string {
-	p := filepath.ToSlash(file)
-	if rel, err := filepath.Rel(sourceRoot, file); err == nil {
-		rel = filepath.ToSlash(rel)
-		if rel != "." && rel != ".." && !strings.HasPrefix(rel, "../") {
-			p = rel
-		}
-	}
-	full := p + ":" + strconv.Itoa(line)
-	if len(full) <= width {
-		return fmt.Sprintf("%*s", width, full)
+	if width <= 0 {
+		return ""
 	}
 
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		fileWithLine := p[i+1:] + ":" + strconv.Itoa(line)
-		if len(fileWithLine)+2 <= width {
-			dir := p[:i]
-			start := max(len(dir)-(width-len(fileWithLine)-1), 0)
-			for start < len(dir) && !utf8.RuneStart(dir[start]) {
-				start++
+	p := strings.ReplaceAll(file, `\`, "/")
+	if sourceRoot != "" {
+		if rel, err := filepath.Rel(sourceRoot, file); err == nil {
+			rel = strings.ReplaceAll(rel, `\`, "/")
+			if rel != "." && rel != ".." && !strings.HasPrefix(rel, "../") {
+				p = rel
 			}
-			tail := dir[start:]
-			if start > 0 && dir[start-1] != '/' {
-				if j := strings.IndexByte(tail, '/'); j >= 0 {
-					tail = tail[j+1:]
-				}
-			}
-			return fmt.Sprintf("%*s", width, tail+"/"+fileWithLine)
 		}
 	}
 
-	adj := max(len(full)-(width-1), 0)
-	for adj < len(full) && !utf8.RuneStart(full[adj]) {
-		adj++
+	full := p
+	if line >= 0 {
+		full += ":" + strconv.Itoa(line)
 	}
-	return "…" + full[adj:]
+
+	start := 0
+	ellipsis := ""
+
+	textWidth := uniseg.StringWidth(full)
+	if textWidth > width {
+		start = strings.LastIndexByte(full, '/') + 1
+		filenameStart := start
+
+		textWidth = uniseg.StringWidth(full[start:])
+		for start > 0 {
+			previous := strings.LastIndexByte(full[:start-1], '/') + 1
+
+			candidateWidth := textWidth + uniseg.StringWidth(full[previous:start])
+			if candidateWidth > width {
+				break
+			}
+
+			start, textWidth = previous, candidateWidth
+		}
+
+		if start == filenameStart {
+			ellipsis = "…"
+			start = 0
+			textWidth = uniseg.StringWidth(full)
+
+			graphemes := uniseg.NewGraphemes(full)
+			for textWidth > width-1 && graphemes.Next() {
+				_, start = graphemes.Positions()
+				textWidth -= graphemes.Width()
+			}
+		}
+	}
+
+	return strings.Repeat(" ", max(width-textWidth-uniseg.StringWidth(ellipsis), 0)) + ellipsis + full[start:]
 }

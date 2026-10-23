@@ -21,15 +21,25 @@ func compactLogger(buf *bytes.Buffer, depth ColorDepth, level slog.Level) *Logge
 }
 
 func TestTargetDefaults(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
-	h := New(Config{Targets: []Target{{Writer: &buf}}}).Handler().(*Handler)
+
+	h, ok := New(Config{Targets: []Target{{Writer: &buf}}}).Handler().(*Handler)
+	if !ok {
+		t.Fatal("default target must use the compact handler")
+	}
+
 	if h.depth != NoColor || h.timeFormat != "15:04:05" || h.pathWidth != 40 || h.style != DefaultStyle() {
 		t.Errorf("unexpected target defaults: %+v", h)
 	}
 }
 
 func TestNoColorIsPlain(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.Info("hello", "k", "v")
 
@@ -37,6 +47,7 @@ func TestNoColorIsPlain(t *testing.T) {
 	if strings.Contains(out, "\x1b[") {
 		t.Fatalf("NoColor output must not contain escape sequences: %q", out)
 	}
+
 	for _, want := range []string{"INFO", "hello", "k", "=", "v"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output %q missing %q", out, want)
@@ -45,22 +56,30 @@ func TestNoColorIsPlain(t *testing.T) {
 }
 
 func TestTrueColorHasEscapes(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, TrueColor, LevelInfo)
 	log.Info("hi")
+
 	out := buf.String()
 	if !strings.Contains(out, "\x1b[38;2;") {
 		t.Fatalf("TrueColor must emit 24-bit fg sequences, got %q", out)
 	}
+
 	if !strings.Contains(out, reset) {
 		t.Errorf("missing reset sequence in %q", out)
 	}
 }
 
 func TestAnsiProfilesHaveEscapes(t *testing.T) {
+	t.Parallel()
+
 	for _, depth := range []ColorDepth{Ansi256, Ansi16} {
 		var buf bytes.Buffer
 		compactLogger(&buf, depth, LevelInfo).Info("hi")
+
 		if !strings.Contains(buf.String(), "\x1b[") {
 			t.Errorf("%v must emit an ANSI sequence, got %q", depth, buf.String())
 		}
@@ -68,45 +87,62 @@ func TestAnsiProfilesHaveEscapes(t *testing.T) {
 }
 
 func TestLevelFiltering(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelWarn)
 	log.Info("dropped")
 	log.Warn("kept")
+
 	out := buf.String()
 	if strings.Contains(out, "dropped") {
 		t.Errorf("info should be filtered at warn level: %q", out)
 	}
+
 	if !strings.Contains(out, "kept") {
 		t.Errorf("warn should pass: %q", out)
 	}
 }
 
 func TestSetLevelRuntime(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.SetLevel(LevelError)
 	log.Warn("nope")
 	log.Error("yes")
+
 	out := buf.String()
 	if strings.Contains(out, "nope") {
 		t.Errorf("warn should be filtered after SetLevel(Error): %q", out)
 	}
+
 	if !strings.Contains(out, "yes") {
 		t.Errorf("error should pass: %q", out)
 	}
 }
 
 func TestTraceLevel(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelTrace)
 	log.Log(context.Background(), LevelTrace, "deep")
+
 	if out := buf.String(); !strings.Contains(out, "TRACE") {
 		t.Errorf("expected TRACE label, got %q", out)
 	}
 }
 
 func TestPerTargetStyle(t *testing.T) {
+	t.Parallel()
+
 	var a, b bytes.Buffer
+
 	log := New(Config{
 		Level: LevelInfo,
 		Targets: []Target{
@@ -115,18 +151,24 @@ func TestPerTargetStyle(t *testing.T) {
 		},
 	})
 	log.Info("x")
-	if out := a.String(); !strings.Contains(out, "[I]") {
+
+	if out := a.String(); !strings.Contains(out, "(I)") {
 		t.Errorf("first target should use short labels: %q", out)
 	}
-	if out := b.String(); !strings.Contains(out, "[INF]") {
+
+	if out := b.String(); !strings.Contains(out, "(INF)") {
 		t.Errorf("second target should use medium labels: %q", out)
 	}
 }
 
 func TestGroupPrefix(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.WithGroup("http").Info("served", "method", "GET")
+
 	out := buf.String()
 	if !strings.Contains(out, "http.method=GET") {
 		t.Errorf("expected dotted group prefix, got %q", out)
@@ -134,23 +176,32 @@ func TestGroupPrefix(t *testing.T) {
 }
 
 func TestGroupOnlyPrefixesLaterAttrs(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.With("svc", "api").WithGroup("http").Info("served", "method", "GET")
+
 	out := buf.String()
 	if !strings.Contains(out, "svc=api") || strings.Contains(out, "http.svc") {
 		t.Errorf("pre-group attr must stay unprefixed: %q", out)
 	}
+
 	if !strings.Contains(out, "http.method=GET") {
 		t.Errorf("post-group attr must be prefixed: %q", out)
 	}
 }
 
 func TestInlineGroupFlattens(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.Info("q", slog.Group("req", slog.String("m", "GET"), slog.Int("code", 200)))
 	out := buf.String()
+
 	for _, want := range []string{"req.m=GET", "req.code=200"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output %q missing %q", out, want)
@@ -159,9 +210,13 @@ func TestInlineGroupFlattens(t *testing.T) {
 }
 
 func TestWithAttrs(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := compactLogger(&buf, NoColor, LevelInfo)
 	log.With("svc", "api").Info("up", "port", 8080)
+
 	out := buf.String()
 	for _, want := range []string{"svc=api", "port=8080"} {
 		if !strings.Contains(out, want) {
@@ -171,7 +226,10 @@ func TestWithAttrs(t *testing.T) {
 }
 
 func TestJSONTarget(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := New(Config{
 		Level:   LevelInfo,
 		Targets: []Target{{Writer: &buf, Format: JSON}},
@@ -182,13 +240,17 @@ func TestJSONTarget(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &m); err != nil {
 		t.Fatalf("JSON target did not emit valid JSON: %v (%q)", err, buf.String())
 	}
+
 	if m["msg"] != "event" || m["user"] != "bob" {
 		t.Errorf("unexpected JSON payload: %v", m)
 	}
 }
 
 func TestJSONSourceIsPerTarget(t *testing.T) {
+	t.Parallel()
+
 	var console, file bytes.Buffer
+
 	log := New(Config{
 		Level: LevelInfo,
 		Targets: []Target{
@@ -197,17 +259,22 @@ func TestJSONSourceIsPerTarget(t *testing.T) {
 		},
 	})
 	log.Info("x")
+
 	var m map[string]any
 	if err := json.Unmarshal(file.Bytes(), &m); err != nil {
 		t.Fatalf("file target not valid JSON: %v", err)
 	}
+
 	if _, ok := m["source"]; ok {
 		t.Errorf("console ShowSource leaked into JSON output: %v", m)
 	}
 }
 
 func TestFanoutMultipleTargets(t *testing.T) {
+	t.Parallel()
+
 	var console, file bytes.Buffer
+
 	log := New(Config{
 		Level: LevelInfo,
 		Targets: []Target{
@@ -222,24 +289,30 @@ func TestFanoutMultipleTargets(t *testing.T) {
 			t.Errorf("console target missing %q: %q", want, console.String())
 		}
 	}
+
 	var m map[string]any
 	if err := json.Unmarshal(file.Bytes(), &m); err != nil {
 		t.Fatalf("file target not valid JSON: %v", err)
 	}
+
 	if m["msg"] != "dual" || m["svc"] != "api" {
 		t.Errorf("file target wrong payload: %v", m)
 	}
+
 	if group, ok := m["http"].(map[string]any); !ok || group["n"] != float64(1) {
 		t.Errorf("file target missing grouped attr: %v", m)
 	}
 }
 
 func TestFanoutReturnsAllErrors(t *testing.T) {
+	t.Parallel()
+
 	first, second := errors.New("first"), errors.New("second")
 	log := New(Config{Targets: []Target{
 		{Writer: errorWriter{first}, Format: Text},
 		{Writer: errorWriter{second}, Format: JSON},
 	}})
+
 	err := log.Handler().Handle(context.Background(), slog.NewRecord(time.Time{}, LevelInfo, "x", 0))
 	if !errors.Is(err, first) || !errors.Is(err, second) {
 		t.Fatalf("fanout error = %v, want both target errors", err)
@@ -247,6 +320,8 @@ func TestFanoutReturnsAllErrors(t *testing.T) {
 }
 
 func TestFormatPathAligns(t *testing.T) {
+	t.Parallel()
+
 	got := formatPath("/home/me/proj/src/http/server.go", 42, 30, "")
 	if len(got) != 30 || !strings.HasSuffix(got, "http/server.go:42") {
 		t.Errorf("short path should right-align to width, got %q (len %d)", got, len(got))
@@ -263,6 +338,7 @@ func TestFormatPathAligns(t *testing.T) {
 	}
 
 	root := t.TempDir()
+
 	rootFile := formatPath(filepath.Join(root, "main.go"), 33, 20, root)
 	if !strings.HasSuffix(rootFile, "main.go:33") || strings.Contains(rootFile, filepath.Base(root)) {
 		t.Errorf("project-root file should omit the root path, got %q", rootFile)
@@ -279,13 +355,16 @@ func TestHandlerFindsModuleRoot(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	dist := filepath.Join(root, "dist")
 	if err := os.Mkdir(dist, 0o750); err != nil {
 		t.Fatal(err)
 	}
+
 	t.Chdir(dist)
 
 	target := Target{Writer: &bytes.Buffer{}, Color: NoColor}.resolve()
+
 	h := newHandler(target, LevelInfo)
 	if h.sourceRoot != root {
 		t.Fatalf("source root = %q, want module root %q", h.sourceRoot, root)
@@ -293,6 +372,8 @@ func TestHandlerFindsModuleRoot(t *testing.T) {
 }
 
 func TestDimDarkens(t *testing.T) {
+	t.Parallel()
+
 	c := RGB{200, 200, 200}.dim()
 	if c.R != 50 || c.G != 50 || c.B != 50 {
 		t.Errorf("dim should quarter each channel, got %v", c)
@@ -300,8 +381,13 @@ func TestDimDarkens(t *testing.T) {
 }
 
 func TestNewHandlerUsesSlogOptions(t *testing.T) {
-	var buf bytes.Buffer
-	var level slog.LevelVar
+	t.Parallel()
+
+	var (
+		buf   bytes.Buffer
+		level slog.LevelVar
+	)
+
 	level.Set(slog.LevelInfo)
 
 	h := NewHandler(&buf, &HandlerOptions{
@@ -311,6 +397,7 @@ func TestNewHandlerUsesSlogOptions(t *testing.T) {
 				if a.Key == "password" {
 					return slog.String(a.Key, "redacted")
 				}
+
 				return a
 			},
 		},
@@ -327,12 +414,15 @@ func TestNewHandlerUsesSlogOptions(t *testing.T) {
 	level.Set(slog.LevelError)
 	log.Info("dropped")
 	log.Error("kept")
+
 	if strings.Contains(buf.String(), "dropped") || !strings.Contains(buf.String(), "kept") {
 		t.Fatalf("LevelVar was not honored: %q", buf.String())
 	}
 }
 
 func TestCompactValueFormatting(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		value slog.Value
 		want  string
@@ -357,7 +447,10 @@ func TestCompactValueFormatting(t *testing.T) {
 }
 
 func TestCompactHandlerUsesLogValuerAndQuotesUnsafeValues(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	log := slog.New(NewHandler(&buf, &HandlerOptions{Color: NoColor}))
 	log.Info("hello\nworld", "user", userValue{}, "note", "a b")
 
@@ -365,6 +458,7 @@ func TestCompactHandlerUsesLogValuerAndQuotesUnsafeValues(t *testing.T) {
 	if strings.Count(out, "\n") != 1 {
 		t.Fatalf("compact output must stay on one line: %q", out)
 	}
+
 	for _, want := range []string{`"hello\nworld"`, "user.name=alice", `note="a b"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output %q missing %q", out, want)
@@ -373,17 +467,22 @@ func TestCompactHandlerUsesLogValuerAndQuotesUnsafeValues(t *testing.T) {
 }
 
 func TestCompactHandlerOmitsZeroRecordTime(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
+
 	h := NewHandler(&buf, &HandlerOptions{Color: NoColor})
+
 	r := slog.NewRecord(time.Time{}, slog.LevelInfo, "zero time", 0)
 	if err := h.Handle(context.Background(), r); err != nil {
 		t.Fatal(err)
 	}
 
 	out := buf.String()
-	if strings.Contains(out, "┇") || strings.Contains(out, "｣") {
+	if strings.Contains(out, "┊") || strings.Contains(out, "❭") {
 		t.Errorf("zero record time should be omitted: %q", out)
 	}
+
 	if !strings.Contains(out, "zero time") {
 		t.Errorf("message missing from output: %q", out)
 	}
