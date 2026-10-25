@@ -27,7 +27,13 @@ func New(cfg Config) *Logger {
 
 	for _, t := range targets {
 		t = t.resolve()
-		handlers = append(handlers, buildHandler(t, lv))
+
+		h := buildHandler(t, lv)
+		if t.Levels != nil {
+			h = withLevels(h, t.Levels, lv)
+		}
+
+		handlers = append(handlers, h)
 
 		var output any = t.Writer
 		if t.Handler != nil {
@@ -91,6 +97,41 @@ func buildHandler(t Target, level slog.Leveler) slog.Handler {
 type levelHandler struct {
 	slog.Handler
 	level slog.Leveler
+}
+
+type levelsHandler struct {
+	slog.Handler
+	levels map[slog.Level]struct{}
+	global slog.Leveler
+}
+
+func withLevels(h slog.Handler, levels []slog.Level, global slog.Leveler) slog.Handler {
+	selected := make(map[slog.Level]struct{}, len(levels))
+	for _, level := range levels {
+		selected[level] = struct{}{}
+	}
+
+	return &levelsHandler{Handler: h, levels: selected, global: global}
+}
+
+func (h *levelsHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	if level < h.global.Level() {
+		return false
+	}
+
+	if _, ok := h.levels[level]; !ok {
+		return false
+	}
+
+	return h.Handler.Enabled(ctx, level)
+}
+
+func (h *levelsHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &levelsHandler{Handler: h.Handler.WithAttrs(attrs), levels: h.levels, global: h.global}
+}
+
+func (h *levelsHandler) WithGroup(name string) slog.Handler {
+	return &levelsHandler{Handler: h.Handler.WithGroup(name), levels: h.levels, global: h.global}
 }
 
 func (h *levelHandler) Enabled(ctx context.Context, level slog.Level) bool {

@@ -25,6 +25,7 @@ type Target struct {
 	Writer  io.Writer
 	Format  Format
 	Handler slog.Handler
+	Levels  []slog.Level
 
 	HandlerOptions slog.HandlerOptions
 
@@ -68,9 +69,25 @@ func (t Target) slogOptions(level slog.Leveler) slog.HandlerOptions {
 	opts := t.HandlerOptions
 	if opts.Level == nil {
 		opts.Level = level
+	} else if level != nil {
+		opts.Level = maxLeveler{global: level, target: opts.Level}
 	}
 
 	opts.AddSource = opts.AddSource || t.AddSource
 
 	return opts
+}
+
+type maxLeveler struct {
+	global slog.Leveler
+	target slog.Leveler
+}
+
+func (l maxLeveler) Level() slog.Level {
+	global, target := l.global.Level(), l.target.Level()
+	if global > target {
+		return global
+	}
+
+	return target
 }
