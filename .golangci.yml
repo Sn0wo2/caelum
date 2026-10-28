@@ -70,11 +70,16 @@ linters:
     - zerologlint
   exclusions:
     rules:
-      - path: ^file\.go$
+      - path: ^internal/(builder/logger|native/native)\.go$
         linters:
           - gosec
-        text: "^G304:"
-        source: 'os\.(OpenFile|Open)\((candidate|source|archive)[,)]'
+        text: "^G103:"
+        source: 'unsafe\.'
+      - path: ^internal/loader/loader_windows\.go$
+        linters:
+          - gosec
+        text: "^G103:"
+        source: 'NewProc\("LoadLibraryExW"\)\.Call\('
 
 run:
   concurrency: 4
