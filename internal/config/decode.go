@@ -1,4 +1,4 @@
-package utils
+package config
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-func DecodeObject(data []byte, name string) (map[string]json.RawMessage, error) {
+func decodeObject(data []byte, name string) (map[string]json.RawMessage, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func DecodeObject(data []byte, name string) (map[string]json.RawMessage, error) 
 	return fields, nil
 }
 
-func DecodeField[T any](fields map[string]json.RawMessage, name string, value *T) (bool, error) {
+func decodeField[T any](fields map[string]json.RawMessage, name string, value *T) (bool, error) {
 	raw, ok := fields[name]
 	if !ok {
 		return false, nil
@@ -37,7 +37,7 @@ func DecodeField[T any](fields map[string]json.RawMessage, name string, value *T
 	return true, nil
 }
 
-func DecodeOptionalField[T any](fields map[string]json.RawMessage, name string) (*T, bool, error) {
+func decodeOptionalField[T any](fields map[string]json.RawMessage, name string) (*T, bool, error) {
 	raw, ok := fields[name]
 	if !ok {
 		return nil, false, nil
@@ -55,7 +55,7 @@ func DecodeOptionalField[T any](fields map[string]json.RawMessage, name string) 
 	return &value, true, nil
 }
 
-func DecodeString(data []byte) (string, error) {
+func decodeString(data []byte) (string, error) {
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return "", errors.New("expected string")
 	}

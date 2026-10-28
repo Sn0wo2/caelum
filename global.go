@@ -10,7 +10,6 @@ var defaultLogger atomic.Pointer[Logger]
 
 var ErrNoDefault = errors.New("caelum: no default logger is set")
 
-// Init creates a logger and installs it as the package default.
 func Init(cfg Config) (*Logger, error) {
 	logger, err := New(cfg)
 	if err != nil {
@@ -22,9 +21,13 @@ func Init(cfg Config) (*Logger, error) {
 	return logger, nil
 }
 
-func SetDefault(logger *Logger) { defaultLogger.Store(logger) }
+func SetDefault(logger *Logger) {
+	defaultLogger.Store(logger)
+}
 
-func Default() *Logger { return defaultLogger.Load() }
+func Default() *Logger {
+	return defaultLogger.Load()
+}
 
 func fromDefault() (*Logger, error) {
 	if logger := defaultLogger.Load(); logger != nil {
@@ -34,67 +37,62 @@ func fromDefault() (*Logger, error) {
 	return nil, ErrNoDefault
 }
 
-func Log(level Level, message string) error {
+func Log(level Level, message string, fields ...Field) error {
 	logger, err := fromDefault()
 	if err != nil {
 		return err
 	}
 
-	return logger.Log(level, message)
+	return logger.Log(level, message, fields...)
 }
 
-func LogContext(ctx context.Context, level Level, message string) error {
+func LogContext(ctx context.Context, level Level, message string, fields ...Field) error {
 	logger, err := fromDefault()
 	if err != nil {
 		return err
 	}
 
-	return logger.LogContext(ctx, level, message)
+	return logger.LogContext(ctx, level, message, fields...)
 }
 
-func Error(message string) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
-
-	return logger.Error(message)
+func Error(message string, fields ...Field) error {
+	return Log(LevelError, message, fields...)
 }
 
-func Warn(message string) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
-
-	return logger.Warn(message)
+func Warn(message string, fields ...Field) error {
+	return Log(LevelWarn, message, fields...)
 }
 
-func Info(message string) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
-
-	return logger.Info(message)
+func Info(message string, fields ...Field) error {
+	return Log(LevelInfo, message, fields...)
 }
 
-func Debug(message string) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
-
-	return logger.Debug(message)
+func Debug(message string, fields ...Field) error {
+	return Log(LevelDebug, message, fields...)
 }
 
-func Trace(message string) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
+func Trace(message string, fields ...Field) error {
+	return Log(LevelTrace, message, fields...)
+}
 
-	return logger.Trace(message)
+func ErrorContext(ctx context.Context, message string, fields ...Field) error {
+	return LogContext(ctx, LevelError, message, fields...)
+}
+
+func WarnContext(ctx context.Context, message string, fields ...Field) error {
+	return LogContext(ctx, LevelWarn, message, fields...)
+}
+
+func InfoContext(ctx context.Context, message string, fields ...Field) error {
+	return LogContext(ctx, LevelInfo, message, fields...)
+}
+
+func DebugContext(ctx context.Context, message string, fields ...Field) error {
+	return LogContext(ctx, LevelDebug, message, fields...)
+}
+
+func TraceContext(ctx context.Context, message string, fields ...Field) error {
+	return LogContext(ctx, LevelTrace, message, fields...)
 }
 
 func LogEvent(value Event) error {
@@ -106,31 +104,31 @@ func LogEvent(value Event) error {
 	return logger.Event(value)
 }
 
-func CreateSpan(value Event) (uint32, error) {
+func LogEventContext(ctx context.Context, value Event) error {
 	logger, err := fromDefault()
 	if err != nil {
-		return 0, err
+		return err
+	}
+
+	return logger.EventContext(ctx, value)
+}
+
+func CreateSpan(value Event) (*Span, error) {
+	logger, err := fromDefault()
+	if err != nil {
+		return nil, err
 	}
 
 	return logger.CreateSpan(value)
 }
 
-func RecordSpan(id uint32, fields map[string]any) error {
+func CreateSpanContext(ctx context.Context, value Event) (*Span, error) {
 	logger, err := fromDefault()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return logger.RecordSpan(id, fields)
-}
-
-func CloseSpan(id uint32) error {
-	logger, err := fromDefault()
-	if err != nil {
-		return err
-	}
-
-	return logger.CloseSpan(id)
+	return logger.CreateSpanContext(ctx, value)
 }
 
 func SetFilter(filter string) error {
@@ -160,8 +158,6 @@ func Flush() error {
 	return logger.Flush()
 }
 
-// Close flushes and destroys the default logger, then clears it. A default
-// installed afterwards by SetDefault is left untouched.
 func Close() error {
 	logger := defaultLogger.Load()
 	if logger == nil {

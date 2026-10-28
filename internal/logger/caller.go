@@ -1,4 +1,4 @@
-package utils
+package logger
 
 import (
 	"fmt"
@@ -8,13 +8,19 @@ import (
 	"strings"
 )
 
-type Caller struct {
-	ModulePath string
-	File       string
-	Line       uint32
+var skipPrefixes = []string{
+	"runtime.",
+	"github.com/Sn0wo2/caelum.",
+	"github.com/Sn0wo2/caelum/internal/logger.",
 }
 
-func CallerInfo(skipPrefixes []string, callerSkip int) (Caller, bool) {
+type caller struct {
+	ModulePath string
+	File       string
+	Line       int
+}
+
+func callerInfo(callerSkip int) (caller, bool) {
 	var pcs [64]uintptr
 
 	n := runtime.Callers(2, pcs[:])
@@ -28,7 +34,7 @@ func CallerInfo(skipPrefixes []string, callerSkip int) (Caller, bool) {
 				callerSkip--
 			} else {
 				if frame.Line < 0 || uint64(frame.Line) > math.MaxUint32 {
-					return Caller{}, false
+					return caller{}, false
 				}
 
 				modulePath := frame.Function
@@ -38,21 +44,21 @@ func CallerInfo(skipPrefixes []string, callerSkip int) (Caller, bool) {
 					modulePath = modulePath[:start+dot]
 				}
 
-				return Caller{
+				return caller{
 					ModulePath: modulePath,
 					File:       frame.File,
-					Line:       uint32(frame.Line),
+					Line:       frame.Line,
 				}, true
 			}
 		}
 
 		if !more {
-			return Caller{}, false
+			return caller{}, false
 		}
 	}
 }
 
-func Stacktrace(skipPrefixes []string, callerSkip int) []string {
+func stacktrace(callerSkip int) []string {
 	var pcs [128]uintptr
 
 	n := runtime.Callers(2, pcs[:])

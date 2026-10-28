@@ -3,17 +3,17 @@ package caelum
 import (
 	"context"
 
-	"github.com/Sn0wo2/caelum/internal/span"
+	"github.com/Sn0wo2/caelum/internal/logger"
 )
 
-type Span = span.Span
+type Span = logger.Span
 
-var ErrSpanMismatch = span.ErrSpanMismatch
+var ErrSpanMismatch = logger.ErrSpanMismatch
 
 func ContextWithSpan(ctx context.Context, value *Span) context.Context {
-	return span.ContextWithSpan(ctx, value)
+	return logger.ContextWithSpan(ctx, value)
 }
 
 func SpanFromContext(ctx context.Context) (*Span, bool) {
-	return span.SpanFromContext(ctx)
+	return logger.SpanFromContext(ctx)
 }
