@@ -1,147 +1,29 @@
 package caelum
 
 import (
-	"context"
-	"errors"
-	"log/slog"
+	"github.com/Sn0wo2/caelum/internal/builder"
+	"github.com/Sn0wo2/caelum/internal/event"
 )
 
-type Logger struct {
-	*slog.Logger
-	level    *slog.LevelVar
-	flushers []interface{ Flush() error }
-}
+type (
+	Logger      = builder.Logger
+	StatusError = builder.StatusError
+	Event       = event.Event
+)
 
-func New(cfg Config) *Logger {
-	lv := new(slog.LevelVar)
-	lv.Set(cfg.Level)
+var (
+	ErrClosed = builder.ErrClosed
+	ErrBusy   = builder.ErrBusy
+)
 
-	targets := cfg.Targets
-	if len(targets) == 0 {
-		targets = []Target{{}}
-	}
+const (
+	StatusOK              = builder.StatusOK
+	StatusInvalidArgument = builder.StatusInvalidArgument
+	StatusInvalidHandle   = builder.StatusInvalidHandle
+	StatusLoggerError     = builder.StatusLoggerError
+	StatusInternalError   = builder.StatusInternalError
+)
 
-	handlers := make([]slog.Handler, 0, len(targets))
-
-	var flushers []interface{ Flush() error }
-
-	for _, t := range targets {
-		t = t.resolve()
-
-		h := buildHandler(t, lv)
-		if t.Levels != nil {
-			h = withLevels(h, t.Levels, lv)
-		}
-
-		handlers = append(handlers, h)
-
-		var output any = t.Writer
-		if t.Handler != nil {
-			output = t.Handler
-		}
-
-		if f, ok := output.(interface{ Flush() error }); ok {
-			flushers = append(flushers, f)
-		}
-	}
-
-	h := handlers[0]
-	if len(handlers) > 1 {
-		h = slog.NewMultiHandler(handlers...)
-	}
-
-	return &Logger{Logger: slog.New(h), level: lv, flushers: flushers}
-}
-
-func Init(cfg Config) *Logger {
-	l := New(cfg)
-	slog.SetDefault(l.Logger)
-
-	return l
-}
-
-func (l *Logger) SetLevel(level slog.Level) {
-	l.level.Set(level)
-}
-
-func (l *Logger) Flush() error {
-	var errs []error
-
-	for _, f := range l.flushers {
-		if err := f.Flush(); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func buildHandler(t Target, level slog.Leveler) slog.Handler {
-	opts := t.slogOptions(level)
-	if t.Handler != nil {
-		return withStacktrace(&levelHandler{Handler: t.Handler, level: opts.Level}, t.Stacktrace)
-	}
-
-	switch t.Format {
-	case JSON:
-		return withStacktrace(slog.NewJSONHandler(t.Writer, &opts), t.Stacktrace)
-	case Text:
-		return withStacktrace(slog.NewTextHandler(t.Writer, &opts), t.Stacktrace)
-	case Compact, Pretty:
-		return newHandler(t, level)
-	default:
-		return newHandler(t, level)
-	}
-}
-
-type levelHandler struct {
-	slog.Handler
-	level slog.Leveler
-}
-
-type levelsHandler struct {
-	slog.Handler
-	levels map[slog.Level]struct{}
-	global slog.Leveler
-}
-
-func withLevels(h slog.Handler, levels []slog.Level, global slog.Leveler) slog.Handler {
-	selected := make(map[slog.Level]struct{}, len(levels))
-	for _, level := range levels {
-		selected[level] = struct{}{}
-	}
-
-	return &levelsHandler{Handler: h, levels: selected, global: global}
-}
-
-func (h *levelsHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	if level < h.global.Level() {
-		return false
-	}
-
-	if _, ok := h.levels[level]; !ok {
-		return false
-	}
-
-	return h.Handler.Enabled(ctx, level)
-}
-
-func (h *levelsHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &levelsHandler{Handler: h.Handler.WithAttrs(attrs), levels: h.levels, global: h.global}
-}
-
-func (h *levelsHandler) WithGroup(name string) slog.Handler {
-	return &levelsHandler{Handler: h.Handler.WithGroup(name), levels: h.levels, global: h.global}
-}
-
-func (h *levelHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return level >= h.level.Level() && h.Handler.Enabled(ctx, level)
-}
-
-func (h *levelHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &levelHandler{Handler: h.Handler.WithAttrs(attrs), level: h.level}
-}
-
-func (h *levelHandler) WithGroup(name string) slog.Handler {
-	return &levelHandler{Handler: h.Handler.WithGroup(name), level: h.level}
+func New(cfg Config) (*Logger, error) {
+	return builder.New(cfg)
 }

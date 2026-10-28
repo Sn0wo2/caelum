@@ -1,47 +1,65 @@
 package main
 
 import (
-	"os"
+	"context"
 
 	"github.com/Sn0wo2/caelum"
 )
 
 func main() {
-	out := caelum.Async(os.Stdout, caelum.AsyncConfig{})
-
-	log := caelum.New(caelum.Config{
-		Level: caelum.LevelDebug,
-		Targets: []caelum.Target{
-			{Writer: out, Color: caelum.TrueColor, AddSource: true},
-		},
+	log, err := caelum.New(caelum.Config{
+		Filter: "debug",
 	})
-	defer func() { _ = out.Close() }()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := log.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
-	log.Info("Hello, caelum!")
-	log.Debug("User logged in", "user", "alice", "id", 42)
-	log.Warn("disk almost full", "free_pct", 7)
-	log.Error("request failed", "status", 500, "path", "/api/x")
+	if err := log.Info("Hello, caelum!"); err != nil {
+		panic(err)
+	}
 
-	log.WithGroup("http").Info("served", "method", "GET", "ms", 12)
+	span, err := log.CreateSpanContext(context.Background(), caelum.Event{
+		Name: new("login"), Fields: map[string]any{"user": "guest"},
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := span.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
-	log.SetLevel(caelum.LevelWarn)
-	log.Info("this is filtered out")
-	log.Warn("only warnings and above now")
+	if err := span.Record(map[string]any{"user": "Me0wo"}); err != nil {
+		panic(err)
+	}
 
-	for _, item := range []struct {
-		name  string
-		theme caelum.Theme
-	}{
-		{name: "dracula", theme: caelum.ThemeDracula},
-		{name: "monokai", theme: caelum.ThemeMonokai},
-		{name: "nord", theme: caelum.ThemeNord},
-		{name: "tokyo", theme: caelum.ThemeTokyoNight},
-	} {
-		themed := caelum.New(caelum.Config{Targets: []caelum.Target{{
-			Writer: out,
-			Color:  caelum.TrueColor,
-			Style:  &caelum.Style{Theme: item.theme, Labels: caelum.LabelsMedium},
-		}}})
-		themed.Warn("theme demo", "theme", item.name)
+	if err := log.DebugContext(span.Context(context.Background()), "User logged in"); err != nil {
+		panic(err)
+	}
+
+	if err := log.Warn("disk almost full"); err != nil {
+		panic(err)
+	}
+
+	if err := log.Error("request failed"); err != nil {
+		panic(err)
+	}
+
+	if err := log.SetFilter("warn"); err != nil {
+		panic(err)
+	}
+
+	if err := log.Info("this is filtered out"); err != nil {
+		panic(err)
+	}
+
+	if err := log.Warn("only warnings and above now"); err != nil {
+		panic(err)
 	}
 }
