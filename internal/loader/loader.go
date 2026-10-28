@@ -3,8 +3,6 @@ package loader
 import (
 	"fmt"
 	"io/fs"
-
-	"github.com/Sn0wo2/caelum/internal/utils"
 )
 
 type Loader interface {
@@ -27,5 +25,5 @@ func Extract(assets fs.FS, name string) (string, error) {
 		return "", fmt.Errorf("embedded file %q is empty", name)
 	}
 
-	return utils.CacheFile("caelum/libraries", name, data)
+	return cacheFile("caelum/libraries", name, data)
 }

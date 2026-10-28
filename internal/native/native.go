@@ -10,7 +10,6 @@ import (
 	"github.com/ebitengine/purego"
 )
 
-// ABIVersion is the acta FFI ABI this binding implements.
 const ABIVersion = 2
 
 type API struct {
@@ -29,7 +28,6 @@ type API struct {
 	lastError func() unsafe.Pointer
 }
 
-// cString reads a NUL-terminated string at pointer, or "" when null.
 func cString(pointer unsafe.Pointer) string {
 	if pointer == nil {
 		return ""
@@ -40,17 +38,13 @@ func cString(pointer unsafe.Pointer) string {
 		length++
 	}
 
-	return unsafe.String((*byte)(pointer), length)
+	return string(unsafe.Slice((*byte)(pointer), length))
 }
 
-// ActaVersion returns the acta version string reported by the loaded library.
 func (api *API) ActaVersion() string {
 	return cString(api.version())
 }
 
-// LastError returns the detail message acta recorded for the most recent
-// failed call on this thread, or "" when the last call succeeded. It must be
-// read before any other acta call, which may overwrite the message.
 func (api *API) LastError() string {
 	return cString(api.lastError())
 }

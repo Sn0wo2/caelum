@@ -1,4 +1,4 @@
-package utils
+package loader
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func CacheFile(namespace, name string, data []byte) (cachedPath string, err error) {
+func cacheFile(namespace, name string, data []byte) (cachedPath string, err error) {
 	if !fs.ValidPath(namespace) || namespace == "." || strings.ContainsAny(namespace, "\\:") {
 		return "", fmt.Errorf("invalid cache namespace %q", namespace)
 	}
@@ -82,7 +82,9 @@ func CacheFile(namespace, name string, data []byte) (cachedPath string, err erro
 	hashDir := filepath.Join(cacheRoot, hex.EncodeToString(identityHash.Sum(nil)))
 	filePath := filepath.Join(hashDir, filename)
 
-	if cachedPath, exists, err := verifyCachedFile(hashDir, cacheBase, filePath, int64(len(data)), expectedHash); err != nil {
+	if cachedPath, exists, err := verifyCachedFile(
+		hashDir, cacheBase, filePath, int64(len(data)), expectedHash,
+	); err != nil {
 		return "", err
 	} else if exists {
 		return cachedPath, nil
@@ -147,7 +149,9 @@ func CacheFile(namespace, name string, data []byte) (cachedPath string, err erro
 	}
 
 	if err = os.Rename(tempDir, hashDir); err != nil {
-		if cachedPath, exists, cacheErr := verifyCachedFile(hashDir, cacheBase, filePath, int64(len(data)), expectedHash); cacheErr == nil && exists {
+		if cachedPath, exists, cacheErr := verifyCachedFile(
+			hashDir, cacheBase, filePath, int64(len(data)), expectedHash,
+		); cacheErr == nil && exists {
 			return cachedPath, nil
 		} else if cacheErr != nil {
 			err = errors.Join(fmt.Errorf("atomically install cached file: %w", err), cacheErr)
@@ -178,7 +182,8 @@ func validateCachePath(directory, cacheBase string) error {
 			mode := info.Mode().Perm()
 			relative, relErr := filepath.Rel(cacheBase, current)
 
-			insideCache := relErr == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+			insideCache := relErr == nil && relative != "." && relative != ".." &&
+				!strings.HasPrefix(relative, ".."+string(filepath.Separator))
 			if insideCache && mode&0o077 != 0 {
 				return fmt.Errorf("%s has non-private permissions %04o", current, mode)
 			}
