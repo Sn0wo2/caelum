@@ -70,7 +70,7 @@ linters:
     - zerologlint
   exclusions:
     rules:
-      - path: ^internal/(builder/logger|native/native)\.go$
+      - path: ^internal/(logger/(logger|log|span|output)|native/native)\.go$
         linters:
           - gosec
         text: "^G103:"
@@ -79,7 +79,7 @@ linters:
         linters:
           - gosec
         text: "^G103:"
-        source: 'NewProc\("LoadLibraryExW"\)\.Call\('
+        source: 'unsafe\.Pointer\(pathPointer\)'
 
 run:
   concurrency: 4

@@ -30,6 +30,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check caelum version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^const caelumVersion = "\([^"]*\)"$/\1/p' internal/logger/version.go)
+          if [ -z "$version" ] || [ "$RELEASE_TAG" != "v$version" ]; then
+            echo "::error::Release tag $RELEASE_TAG does not match caelum version $version"
+            exit 1
+          fi
+
       - name: Check for an already published release
         id: release
         env:
