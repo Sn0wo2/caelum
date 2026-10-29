@@ -13,6 +13,7 @@ func Open(path string) (Loader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open shared library: %w", err)
 	}
+
 	return handle(libraryHandle), nil
 }
 
