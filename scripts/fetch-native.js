@@ -67,8 +67,8 @@ async function main() {
 
   const version = tag.startsWith("v") ? tag.slice(1) : tag
   const archives = [
-    `acta_${version}_ffi_linux-windows.tar.gz`,
-    `acta_${version}_ffi_macos.tar.gz`,
+    `acta_ffi_${version}_linux-windows.tar.gz`,
+    `acta_ffi_${version}_macos.tar.gz`,
   ]
   const assets = Array.isArray(release.assets) ? release.assets : []
   const available = assets.map((asset) => raw(asset.name)).join(", ")
