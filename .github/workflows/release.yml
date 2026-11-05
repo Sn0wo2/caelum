@@ -77,6 +77,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: release-snapshot
+          path: |
+            dist/artifacts.json
+            dist/metadata.json
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
   release:
     needs: check-release
     if: >-
