@@ -20,4 +20,7 @@ go.work.sum
 
 .env
 
+.idea/
+.vscode/
+
 /data/logs/
