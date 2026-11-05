@@ -298,12 +298,8 @@ func demoReload() {
 			},
 		},
 	})
-	if err != nil {
-		fmt.Printf("[X] init: %v\n", err)
 
-		return
-	}
-
+	must(err)
 	defer func() { must(caelum.Close()) }()
 
 	fmt.Println("[√] init")
