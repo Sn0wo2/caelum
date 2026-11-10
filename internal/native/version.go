@@ -1,3 +1,3 @@
 package native
 
-const EmbeddedActaVersion = "0.8.0"
+const EmbeddedActaVersion = "0.8.5"
