@@ -64,7 +64,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/fetch-native.js
 
-      - uses: peter-evans/create-pull-request@v8
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
         with:
           commit-message: "chore(native): refresh embedded Acta artifacts"
           branch: automation/native-refresh

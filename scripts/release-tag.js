@@ -4,7 +4,7 @@ const TAG_PATTERN = /^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*
 
 function git(...args) {
   try {
-    return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
+    return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim() // NOSONAR
   } catch (error) {
     const details = error.stderr?.toString().trim()
     throw new Error(details ? `\`git ${args.join(" ")}\` failed: ${details}` : `\`git ${args.join(" ")}\` failed`)
@@ -13,7 +13,7 @@ function git(...args) {
 
 function gitSucceeds(...args) {
   try {
-    execFileSync("git", args, { stdio: "ignore" })
+    execFileSync("git", args, { stdio: "ignore" }) // NOSONAR
     return true
   } catch {
     return false
@@ -56,6 +56,9 @@ async function main() {
   const tag = process.argv[2]
   if (!tag) throw new Error("Usage: make release-tag TAG=v1.13.0 (or node scripts/release-tag.js <tag> [ref])")
   const ref = process.argv[3] ?? "HEAD"
+  if (!/^[0-9A-Za-z._/-]+$/.test(ref) || ref.startsWith("-") || ref.startsWith("/") || ref.endsWith("/") || ref.includes("..")) {
+    throw new Error(`Invalid ref "${ref}"`)
+  }
   const version = parseTag(tag)
   const major = `v${version.major}`
   const message = process.env.TAG_MESSAGE ?? "meow"
@@ -90,7 +93,7 @@ async function main() {
 
   console.log(`Pushing ${tag} and updating ${major} on origin...`)
   try {
-    execFileSync("git", ["push", "origin", `refs/tags/${tag}`, `+refs/tags/${tag}:refs/tags/${major}`], { stdio: "inherit" })
+    execFileSync("git", ["push", "origin", `refs/tags/${tag}`, `+refs/tags/${tag}:refs/tags/${major}`], { stdio: "inherit" }) // NOSONAR
   } catch {
     throw new Error(`Failed to push ${tag} to origin`)
   }

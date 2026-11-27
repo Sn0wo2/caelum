@@ -10,7 +10,7 @@ function requiredEnv(name) {
 }
 
 function ghApi(endpoint) {
-  const result = spawnSync("gh", ["api", endpoint], {
+  const result = spawnSync("gh", ["api", endpoint], { // NOSONAR
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
     stdio: ["ignore", "pipe", "inherit"],
@@ -82,7 +82,7 @@ async function main() {
   if (withoutDigest.length > 0) {
     const checksumAsset = assets.find((asset) => asset.name === "checksums.txt")
     const checksumsUrl = checksumAsset?.browser_download_url
-    if (typeof checksumsUrl !== "string" || !checksumsUrl) {
+    if (typeof checksumsUrl !== "string" || !/^https:\/\//.test(checksumsUrl)) {
       throw new Error(`::error::Acta release ${tag} has no SHA256 digest for every FFI archive and no checksums.txt. No native files were changed.`)
     }
     const checksums = ghApi(checksumsUrl)
@@ -107,7 +107,7 @@ async function main() {
     const archivePaths = new Map()
     for (const archive of archives) {
       const assetUrl = archiveAssets.get(archive).browser_download_url
-      if (typeof assetUrl !== "string" || !assetUrl) {
+      if (typeof assetUrl !== "string" || !/^https:\/\//.test(assetUrl)) {
         throw new Error(`::error::Acta archive ${archive} has no download URL`)
       }
       const archivePath = join(temporary, archive)
