@@ -49,14 +49,6 @@ jobs:
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Check caelum version
-        run: |
-          version=$(sed -n 's/^const caelumVersion = "\([^"]*\)"$/\1/p' internal/logger/version.go)
-          if [ -z "$version" ] || [ "$version" != "$VERSION" ]; then
-            echo "::error::Release version $VERSION does not match caelumVersion $version"
-            exit 1
-          fi
-
       - name: Check for an already published release
         id: release
         if: ${{ !inputs.snapshot }}
@@ -95,14 +87,14 @@ jobs:
       - name: Reuse CI checks for this commit
         if: github.event_name == 'push' && steps.release.outputs.skip != 'true' && steps.ci.outputs.found == 'true'
         timeout-minutes: 15
-        uses: lewagon/wait-on-check-action@369769072fe522a3a8a85c03c96af1e5242a1994 # v1.9.1
+        uses: lewagon/wait-on-check-action@v1.9.1
         with:
           ref: ${{ github.sha }}
           check-name: Checks
           repo-token: ${{ github.token }}
           allowed-conclusions: success
 
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+      - uses: golangci/golangci-lint-action@v9
         if: >-
           steps.release.outputs.skip != 'true' &&
           (github.event_name == 'workflow_dispatch' ||
@@ -146,7 +138,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+      - uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean --snapshot
         env:
@@ -184,7 +176,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+      - uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean
         env:

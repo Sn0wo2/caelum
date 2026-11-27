@@ -29,7 +29,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+      - uses: golangci/golangci-lint-action@v9
         id: lint
         continue-on-error: true
         with:
@@ -62,7 +62,7 @@ jobs:
 
       - run: make test
 
-      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
+      - uses: golang/govulncheck-action@v1
         with:
           go-version-file: go.mod
           cache: false
@@ -90,7 +90,7 @@ jobs:
 
       - run: git apply "$RUNNER_TEMP/lint-fixes/lint-fixes.patch"
 
-      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
+      - uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(autofix): formatting and lint"
           branch: auto-fix/go-${{ github.event.pull_request.number || github.ref_name }}
