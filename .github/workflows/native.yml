@@ -1,6 +1,9 @@
-name: Refresh native artifacts
+name: Native
 
 on:
+  push:
+    branches: [main, master]
+  pull_request:
   workflow_dispatch:
     inputs:
       tag:
@@ -14,11 +17,36 @@ on:
 permissions: {}
 
 concurrency:
-  group: native-refresh
-  cancel-in-progress: false
+  group: native-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  test:
+    name: Embedded Acta runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-15, macos-15-intel]
+    permissions:
+      contents: read
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - run: go vet ./...
+      - run: go run -mod=readonly ./cmd/demo
+
   refresh:
+    name: Refresh embedded Acta artifacts
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
