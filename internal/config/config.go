@@ -52,7 +52,7 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 
 	value := DefaultConfig()
 	if _, ok := fields["filter"]; ok {
-		if _, err := decodeField(fields, "filter", &value.Filter); err != nil {
+		if err := decodeField(fields, "filter", &value.Filter); err != nil {
 			return err
 		}
 

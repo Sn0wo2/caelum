@@ -20,39 +20,34 @@ func decodeObject(data []byte, name string) (map[string]json.RawMessage, error) 
 	return fields, nil
 }
 
-func decodeField[T any](fields map[string]json.RawMessage, name string, value *T) (bool, error) {
+func decodeField[T any](fields map[string]json.RawMessage, name string, value *T) error {
 	raw, ok := fields[name]
 	if !ok {
-		return false, nil
+		return nil
 	}
 
 	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-		return true, fmt.Errorf("field %q cannot be null", name)
+		return fmt.Errorf("field %q cannot be null", name)
 	}
 
 	if err := json.Unmarshal(raw, value); err != nil {
-		return true, fmt.Errorf("field %q: %w", name, err)
+		return fmt.Errorf("field %q: %w", name, err)
 	}
 
-	return true, nil
+	return nil
 }
 
-func decodeOptionalField[T any](fields map[string]json.RawMessage, name string) (*T, bool, error) {
+func decodeOptionalField[T any](fields map[string]json.RawMessage, name string, value **T) error {
 	raw, ok := fields[name]
 	if !ok {
-		return nil, false, nil
+		return nil
 	}
 
-	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-		return nil, true, nil
+	if err := json.Unmarshal(raw, value); err != nil {
+		return fmt.Errorf("field %q: %w", name, err)
 	}
 
-	var value T
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return nil, true, fmt.Errorf("field %q: %w", name, err)
-	}
-
-	return &value, true, nil
+	return nil
 }
 
 func decodeString(data []byte) (string, error) {

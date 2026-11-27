@@ -28,14 +28,14 @@ func encodeTimeLayout(layout string) (string, error) {
 			continue
 		}
 
-		writeChronoLiteral(&result, layout[literalStart:i])
+		result.WriteString(strings.ReplaceAll(layout[literalStart:i], "%", "%%"))
 		result.WriteString(replacement)
 
 		i += n
 		literalStart = i
 	}
 
-	writeChronoLiteral(&result, layout[literalStart:])
+	result.WriteString(strings.ReplaceAll(layout[literalStart:], "%", "%%"))
 
 	return result.String(), nil
 }
@@ -48,7 +48,7 @@ func goTimeLayoutToken(layout string, i int) (int, string, error) {
 			return len("January"), "%B", nil
 		}
 
-		if strings.HasPrefix(rest, "Jan") && !startsWithASCIILower(rest[3:]) {
+		if strings.HasPrefix(rest, "Jan") && (len(rest) == 3 || rest[3] < 'a' || rest[3] > 'z') {
 			return 3, "%b", nil
 		}
 	case 'M':
@@ -56,7 +56,7 @@ func goTimeLayoutToken(layout string, i int) (int, string, error) {
 			return len("Monday"), "%A", nil
 		}
 
-		if strings.HasPrefix(rest, "Mon") && !startsWithASCIILower(rest[3:]) {
+		if strings.HasPrefix(rest, "Mon") && (len(rest) == 3 || rest[3] < 'a' || rest[3] > 'z') {
 			return 3, "%a", nil
 		}
 
@@ -155,14 +155,6 @@ func goTimeLayoutToken(layout string, i int) (int, string, error) {
 	}
 
 	return 0, "", nil
-}
-
-func startsWithASCIILower(value string) bool {
-	return len(value) > 0 && value[0] >= 'a' && value[0] <= 'z'
-}
-
-func writeChronoLiteral(builder *strings.Builder, value string) {
-	builder.WriteString(strings.ReplaceAll(value, "%", "%%"))
 }
 
 var chronoTimeLayouts = [...]struct {

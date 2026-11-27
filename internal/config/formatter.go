@@ -175,7 +175,7 @@ func (options *PrettyOptions) UnmarshalJSON(data []byte) error {
 		{"file", &value.File},
 		{"line_number", &value.LineNumber},
 	} {
-		if _, err := decodeField(fields, item.name, item.dest); err != nil {
+		if err := decodeField(fields, item.name, item.dest); err != nil {
 			return err
 		}
 	}
@@ -203,7 +203,7 @@ func (options *JSONOptions) UnmarshalJSON(data []byte) error {
 		{"span_list", &value.SpanList},
 		{"flatten_event", &value.FlattenEvent},
 	} {
-		if _, err := decodeField(fields, item.name, item.dest); err != nil {
+		if err := decodeField(fields, item.name, item.dest); err != nil {
 			return err
 		}
 	}

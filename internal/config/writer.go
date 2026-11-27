@@ -75,7 +75,7 @@ func (file *FileConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	value := FileConfig{Rotation: RotationNone}
-	if _, err := decodeField(fields, "path", &value.Path); err != nil {
+	if err := decodeField(fields, "path", &value.Path); err != nil {
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (file *FileConfig) UnmarshalJSON(data []byte) error {
 		return errors.New("file config requires a non-empty path")
 	}
 
-	if _, err := decodeField(fields, "rotation", &value.Rotation); err != nil {
+	if err := decodeField(fields, "rotation", &value.Rotation); err != nil {
 		return err
 	}
 
@@ -174,8 +174,8 @@ func (writer *Writer) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	colorDepth, _, err := decodeOptionalField[ColorDepth](fields, "color_depth")
-	if err != nil {
+	var colorDepth *ColorDepth
+	if err := decodeOptionalField(fields, "color_depth", &colorDepth); err != nil {
 		return err
 	}
 

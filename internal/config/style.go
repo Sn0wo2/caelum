@@ -267,7 +267,7 @@ func (theme *Theme) UnmarshalJSON(data []byte) error {
 		{"debug", &value.Debug},
 		{"trace", &value.Trace},
 	} {
-		if _, err := decodeField(fields, item.name, item.dest); err != nil {
+		if err := decodeField(fields, item.name, item.dest); err != nil {
 			return err
 		}
 	}
@@ -297,7 +297,7 @@ func (icons *Icons) UnmarshalJSON(data []byte) error {
 		{"arrow", &value.Arrow},
 		{"span_join", &value.SpanJoin},
 	} {
-		if _, err := decodeField(fields, item.name, item.dest); err != nil {
+		if err := decodeField(fields, item.name, item.dest); err != nil {
 			return err
 		}
 	}
@@ -323,11 +323,11 @@ func (style *Style) UnmarshalJSON(data []byte) error {
 	}
 
 	value := DefaultStyle()
-	if _, err := decodeField(fields, "theme", &value.Theme); err != nil {
+	if err := decodeField(fields, "theme", &value.Theme); err != nil {
 		return err
 	}
 
-	if _, err := decodeField(fields, "icons", &value.Icons); err != nil {
+	if err := decodeField(fields, "icons", &value.Icons); err != nil {
 		return err
 	}
 
@@ -365,13 +365,13 @@ func decodeLevelLabels(data []byte, defaults LevelLabels) (LevelLabels, error) {
 		{"debug", &defaults.Debug},
 		{"trace", &defaults.Trace},
 	} {
-		if _, err := decodeField(fields, item.name, item.dest); err != nil {
+		if err := decodeField(fields, item.name, item.dest); err != nil {
 			return LevelLabels{}, err
 		}
 	}
 
-	alignment, _, err := decodeOptionalField[LevelAlignment](fields, "alignment")
-	if err != nil {
+	var alignment *LevelAlignment
+	if err := decodeOptionalField(fields, "alignment", &alignment); err != nil {
 		return LevelLabels{}, err
 	}
 
