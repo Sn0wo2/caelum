@@ -1,11 +1,31 @@
 package logger
 
-import "github.com/Sn0wo2/caelum/internal/native"
+import (
+	"runtime/debug"
+	"strings"
 
-const caelumVersion = "0.5.1"
+	"github.com/Sn0wo2/caelum/internal/native"
+)
+
+const modulePath = "github.com/Sn0wo2/caelum"
 
 func (l *Logger) CaelumVersion() string {
-	return caelumVersion
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "devel"
+	}
+
+	for _, dependency := range info.Deps {
+		if dependency.Path == modulePath {
+			return strings.TrimPrefix(dependency.Version, "v")
+		}
+	}
+
+	if info.Main.Path == modulePath {
+		return strings.TrimPrefix(info.Main.Version, "v")
+	}
+
+	return "devel"
 }
 
 func (l *Logger) ActaVersion() string {
