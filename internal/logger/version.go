@@ -2,7 +2,7 @@ package logger
 
 import "github.com/Sn0wo2/caelum/internal/native"
 
-const caelumVersion = "0.5.0"
+const caelumVersion = "0.5.1"
 
 func (l *Logger) CaelumVersion() string {
 	return caelumVersion
