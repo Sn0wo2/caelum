@@ -83,16 +83,11 @@ linters:
         - name: var-declaration
   exclusions:
     rules:
-      - path: ^internal/(logger/(logger|log|span|output)|native/native)\.go$
+      - path: ^internal/logger/(logger|log|span|output)\.go$
         linters:
           - gosec
         text: "^G103:"
         source: 'unsafe\.'
-      - path: ^internal/loader/loader_windows\.go$
-        linters:
-          - gosec
-        text: "^G103:"
-        source: 'unsafe\.Pointer\(pathPointer\)'
 
 run:
   concurrency: 4
