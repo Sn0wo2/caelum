@@ -13,40 +13,17 @@ import (
 const ABIVersion = 2
 
 type API struct {
-	ABIVersion func() uint32
-	Create     func(unsafe.Pointer, uintptr, uintptr, unsafe.Pointer) int32
-	Log        func(uint64, uint32, unsafe.Pointer, uintptr) int32
-	Event      func(uint64, unsafe.Pointer, uintptr) int32
-	CreateSpan func(uint64, unsafe.Pointer, uintptr, unsafe.Pointer) int32
-	RecordSpan func(uint64, uint32, unsafe.Pointer, uintptr) int32
-	CloseSpan  func(uint64, uint32) int32
-	Drain      func(uint64, unsafe.Pointer, uintptr, unsafe.Pointer, unsafe.Pointer) int32
-	SetFilter  func(uint64, unsafe.Pointer, uintptr) int32
-	Destroy    func(uint64) int32
-
-	version   func() unsafe.Pointer
-	lastError func() unsafe.Pointer
-}
-
-func cString(pointer unsafe.Pointer) string {
-	if pointer == nil {
-		return ""
-	}
-
-	length := 0
-	for *(*byte)(unsafe.Add(pointer, length)) != 0 {
-		length++
-	}
-
-	return string(unsafe.Slice((*byte)(pointer), length))
-}
-
-func (api *API) ActaVersion() string {
-	return cString(api.version())
-}
-
-func (api *API) LastError() string {
-	return cString(api.lastError())
+	ActaVersion func() string
+	LastError   func() string
+	Create      func(unsafe.Pointer, uintptr, uintptr, unsafe.Pointer) int32
+	Log         func(uint64, uint32, unsafe.Pointer, uintptr) int32
+	Event       func(uint64, unsafe.Pointer, uintptr) int32
+	CreateSpan  func(uint64, unsafe.Pointer, uintptr, unsafe.Pointer) int32
+	RecordSpan  func(uint64, uint32, unsafe.Pointer, uintptr) int32
+	CloseSpan   func(uint64, uint32) int32
+	Drain       func(uint64, unsafe.Pointer, uintptr, unsafe.Pointer, unsafe.Pointer) int32
+	SetFilter   func(uint64, unsafe.Pointer, uintptr) int32
+	Destroy     func(uint64) int32
 }
 
 var embeddedAPI = sync.OnceValues(func() (*API, error) {
@@ -83,13 +60,15 @@ func Load(library loader.Loader) (*API, error) {
 func bind(library loader.Loader) (*API, error) {
 	api := &API{}
 
+	var abiVersion func() uint32
+
 	for _, binding := range []struct {
 		name string
 		fn   any
 	}{
-		{"acta_abi_version", &api.ABIVersion},
-		{"acta_version", &api.version},
-		{"acta_last_error", &api.lastError},
+		{"acta_abi_version", &abiVersion},
+		{"acta_version", &api.ActaVersion},
+		{"acta_last_error", &api.LastError},
 		{"acta_logger_create", &api.Create},
 		{"acta_logger_log", &api.Log},
 		{"acta_logger_event", &api.Event},
@@ -105,10 +84,14 @@ func bind(library loader.Loader) (*API, error) {
 			return nil, fmt.Errorf("caelum: resolve %s: %w", binding.name, err)
 		}
 
+		if address == 0 {
+			return nil, fmt.Errorf("caelum: resolve %s: null address", binding.name)
+		}
+
 		purego.RegisterFunc(binding.fn, address)
 	}
 
-	if version := api.ABIVersion(); version != ABIVersion {
+	if version := abiVersion(); version != ABIVersion {
 		return nil, fmt.Errorf("caelum: unsupported acta ABI version %d (want %d)", version, ABIVersion)
 	}
 
