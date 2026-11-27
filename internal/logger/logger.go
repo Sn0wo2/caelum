@@ -147,34 +147,36 @@ func (l *Logger) Close() error {
 	l.closing = true
 	l.mu.Unlock()
 
-	owned, err := l.pump(true)
-	if err != nil || !owned {
+	defer func() {
 		l.mu.Lock()
 		l.closing = false
 		l.mu.Unlock()
+	}()
 
-		if err != nil {
-			return err
-		}
+	owned, err := l.pump(true)
+	if err != nil {
+		return err
+	}
 
+	if !owned {
 		return ErrBusy
 	}
 
 	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.pumping {
+		return ErrBusy
+	}
 
 	err = callNative(l.api, "destroy", func() int32 { return l.api.Destroy(l.handle) })
 	if err != nil {
-		l.closing = false
-		l.mu.Unlock()
-
 		return err
 	}
 
 	l.closed = true
-	l.closing = false
 	l.pending = nil
 	l.buffer = nil
-	l.mu.Unlock()
 
 	return nil
 }

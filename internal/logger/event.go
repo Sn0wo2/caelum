@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 
@@ -121,9 +122,7 @@ func captureEvent(event Event, disableCaller bool, callerSkip int, levels []conf
 	}
 
 	fields := make(map[string]any, len(event.Fields)+1)
-	for key, value := range event.Fields {
-		fields[key] = value
-	}
+	maps.Copy(fields, event.Fields)
 
 	fields[name] = frames
 	event.Fields = fields

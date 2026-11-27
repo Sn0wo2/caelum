@@ -106,6 +106,7 @@ func (l *Logger) drainLocked() error {
 	})
 	runtime.KeepAlive(l.buffer)
 	runtime.KeepAlive(&written)
+	runtime.KeepAlive(&dropped)
 
 	if err != nil {
 		return err
@@ -137,67 +138,62 @@ func (l *Logger) pump(flushWriter bool) (bool, error) {
 	}
 
 	l.pumping = true
-	l.mu.Unlock()
+	locked := true
 
-	return true, l.pumpLoop(flushWriter)
-}
-
-func (l *Logger) pumpLoop(flushWriter bool) error {
 	defer func() {
-		l.mu.Lock()
+		if !locked {
+			l.mu.Lock()
+		}
+
 		l.pumping = false
 		l.mu.Unlock()
 	}()
 
 	for {
-		l.mu.Lock()
 		if len(l.pending) == 0 {
 			if err := l.drainLocked(); err != nil {
-				l.mu.Unlock()
-
-				return err
-			}
-
-			if len(l.pending) != 0 {
-				l.mu.Unlock()
-
-				continue
-			}
-
-			if !flushWriter {
-				l.mu.Unlock()
-
-				return nil
-			}
-			l.mu.Unlock()
-
-			if writer, ok := l.writer.(interface{ Flush() error }); ok {
-				if err := writer.Flush(); err != nil {
-					return err
-				}
-			}
-
-			l.mu.Lock()
-			if err := l.drainLocked(); err != nil {
-				l.mu.Unlock()
-
-				return err
+				return true, err
 			}
 
 			if len(l.pending) == 0 {
+				if !flushWriter {
+					return true, nil
+				}
+
+				locked = false
 				l.mu.Unlock()
 
-				return nil
-			}
-			l.mu.Unlock()
+				var err error
+				if writer, ok := l.writer.(interface{ Flush() error }); ok {
+					err = writer.Flush()
+				}
 
-			continue
+				l.mu.Lock()
+				locked = true
+
+				if err != nil {
+					return true, err
+				}
+
+				if err := l.drainLocked(); err != nil {
+					return true, err
+				}
+
+				if len(l.pending) == 0 {
+					return true, nil
+				}
+			}
 		}
 
 		chunk := l.pending
+		locked = false
 		l.mu.Unlock()
 
 		written, err := l.writer.Write(chunk)
+
+		l.mu.Lock()
+		locked = true
+
 		if written < 0 || written > len(chunk) {
 			err = fmt.Errorf("caelum: invalid write count %d", written)
 			written = 0
@@ -205,18 +201,13 @@ func (l *Logger) pumpLoop(flushWriter bool) error {
 			err = io.ErrShortWrite
 		}
 
-		l.mu.Lock()
-
 		l.pending = l.pending[written:]
 		if len(l.pending) == 0 {
 			l.pending = nil
 		}
 
 		if err != nil {
-			l.mu.Unlock()
-
-			return err
+			return true, err
 		}
-		l.mu.Unlock()
 	}
 }
